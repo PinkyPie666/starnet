@@ -6,6 +6,7 @@
 import type { Runner } from '../core/scheduler';
 import type { Task } from '../core/types';
 import { CLASSES } from './classes';
+import { getLang } from '../ui/i18n';
 import type { ClassId } from '../core/types';
 
 const KEY_STORAGE = 'starnet.apiKey';
@@ -51,7 +52,7 @@ export class LiveError extends Error {
   }
 }
 
-export function liveRunner(cls: ClassId, maxTokens: number): Runner {
+export function liveRunner(cls: ClassId, maxTokens: number, webSearch = false): Runner {
   return async ({ task, signal, text }) => {
     const apiKey = getApiKey();
     if (!apiKey) throw new LiveError('ยังไม่ได้ใส่ API key เปิดหน้าตั้งค่าแล้ววาง key ของ Anthropic หรือสลับกลับไปโหมดตัวอย่าง', 'auth');
@@ -62,7 +63,8 @@ export function liveRunner(cls: ClassId, maxTokens: number): Runner {
     const params = {
       model: task.model,
       max_tokens: maxTokens,
-      system: CLASSES[cls].system,
+      system: CLASSES[cls].system + languageRule(),
+      ...(webSearch ? { tools: [webSearchTool(task.model)] } : {}),
       messages: [{ role: 'user' as const, content: buildUserMessage(task) }],
     };
 
@@ -93,6 +95,18 @@ export function liveRunner(cls: ClassId, maxTokens: number): Runner {
       throw toLiveError(err, Anthropic);
     }
   };
+}
+
+function languageRule(): string {
+  return getLang() === 'en'
+    ? '\nLanguage: write in English by default. If the operator clearly writes the mission in another language, answer in that language.'
+    : '\nLanguage: write in Thai by default, in natural modern Thai. If the operator clearly writes the mission in another language, answer in that language. Keep code, commands, file names, product names and technical terms in their original form.';
+}
+
+/** Anthropic-hosted web search; the newer variant needs a newer model. */
+function webSearchTool(model: string) {
+  const dynamic = model === 'claude-sonnet-5-5';
+  return { type: dynamic ? 'web_search_20260209' : 'web_search_20250305', name: 'web_search', max_uses: 3 } as any;
 }
 
 function toLiveError(err: any, A: SDK['default']): LiveError {

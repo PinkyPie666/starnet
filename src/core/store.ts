@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS: Settings = {
   maxOutputTokens: 2048,
   crt: true,
   autopilot: false,
+  webSearch: false,
 };
 
 interface Saved {

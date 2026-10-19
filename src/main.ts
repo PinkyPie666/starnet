@@ -7,6 +7,7 @@ import { CLASSES } from './agents/classes';
 import { assignTask, runPipeline, scheduler } from './app';
 import { mountShell } from './ui/shell';
 import { installThaiFonts } from './ui/th';
+import { installTranslator, tr } from './ui/i18n';
 import type Phaser from 'phaser';
 import type { ClassId } from './core/types';
 
@@ -15,6 +16,7 @@ let stationMod: typeof import('./game') | null = null;
 
 async function boot() {
   installThaiFonts();
+  installTranslator();
   await load();
   const root = document.getElementById('app')!;
   const shell = mountShell(root, {
@@ -56,7 +58,7 @@ function startAutopilot() {
       const want = first ? 3 : 1;
       for (let i = 0; i < want && working + i < 4 && idle.length; i++) {
         const a = idle.splice((Math.random() * idle.length) | 0, 1)[0];
-        assignTask(a.id, CLASSES[a.cls].samplePrompt);
+        assignTask(a.id, tr(CLASSES[a.cls].samplePrompt));
       }
       first = false;
     }

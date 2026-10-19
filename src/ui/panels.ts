@@ -13,6 +13,7 @@ import { avatarImg, btn, fmtTokens, fullBody, h } from './dom';
 import { icon } from './icons';
 import { renderMarkdown } from './markdown';
 import { STATUS_TH } from './th';
+import { tr } from './i18n';
 
 const HAIR_STYLES_TH = ['สั้น', 'ยาว', 'ทรงหงอน', 'โกนเกรียน'];
 const UNIFORM_TH = ['น้ำเงินสถานี', 'ทองบัญชาการ', 'เขียววิศวกร', 'ม่วงวิทยาศาสตร์', 'แดงรักษาการณ์', 'เทาปฏิบัติการ'];
@@ -166,7 +167,7 @@ function taskPanel(agentId?: string, preset?: { input: string; from: string }) {
     small: true,
     kind: 'ghost',
     onClick: () => {
-      if (chosen) ta.value = CLASSES[chosen.cls].samplePrompt;
+      if (chosen) ta.value = tr(CLASSES[chosen.cls].samplePrompt);
     },
   });
   const who = h('div', { class: 'field-note' });
@@ -335,7 +336,7 @@ function pipelinePanel() {
   const chainEl = h('div', { class: 'chain' });
   const MAX = 4;
   const ta = h('textarea', { placeholder: 'โจทย์ของทั้งทีม เช่น ทำแผนเปิดตัวร้านกาแฟเปิดใหม่ในเชียงใหม่ พร้อมโพสต์ประกาศ' }) as HTMLTextAreaElement;
-  ta.value = 'ทำแผนเปิดตัวร้านกาแฟเปิดใหม่ในเชียงใหม่ แล้วเขียนโพสต์เฟซบุ๊กประกาศเปิดร้าน';
+  ta.value = tr('ทำแผนเปิดตัวร้านกาแฟเปิดใหม่ในเชียงใหม่ แล้วเขียนโพสต์เฟซบุ๊กประกาศเปิดร้าน');
   const go = btn('เริ่มงานต่อกัน', {
     icon: 'workflow',
     kind: 'primary',
@@ -446,6 +447,7 @@ function settingsPanel() {
   const maxOut = h('input', { type: 'number', min: 256, max: 16000, step: 256, value: s.maxOutputTokens }) as HTMLInputElement;
   const crt = h('input', { type: 'checkbox', checked: s.crt }) as HTMLInputElement;
   const auto = h('input', { type: 'checkbox', checked: s.autopilot }) as HTMLInputElement;
+  const web = h('input', { type: 'checkbox', checked: s.webSearch }) as HTMLInputElement;
   const usedEl = h('span', null, `วันนี้ใช้ไป ${usedToday().toLocaleString()} โทเคน`);
 
   modal(
@@ -467,6 +469,7 @@ function settingsPanel() {
       ),
       h('div', { class: 'row' }, h('label', { class: 'field grow' }, 'เพดานโทเคนต่อวัน', limit), h('label', { class: 'field grow' }, 'ความยาวคำตอบสูงสุดต่องาน (โทเคน)', maxOut)),
       h('div', { class: 'row field-note' }, usedEl, btn('รีเซ็ตตัวนับ', { icon: 'reset', small: true, kind: 'ghost', onClick: () => (resetSpend(), (usedEl.textContent = 'วันนี้ใช้ไป 0 โทเคน'), bus.emit('spend:update', { used: 0, limit: s.dailyTokenLimit })) })),
+      h('label', { class: 'row field-note' }, web, 'ให้ลูกเรือค้นเว็บได้ (ค้นหาข้อมูลล่าสุดจากอินเทอร์เน็ต มีค่าใช้จ่ายเพิ่มประมาณ 10 ดอลลาร์ต่อ 1,000 ครั้ง และผู้ดูแลบัญชีต้องเปิดใช้ใน Console ก่อน)'),
       h('label', { class: 'row field-note' }, crt, 'เส้นจอ CRT แบบทีวีเก่า'),
       h('label', { class: 'row field-note' }, auto, 'ให้ลูกเรือที่ว่างหยิบงานตัวอย่างมาทำเอง (เฉพาะโหมดตัวอย่าง ไว้โชว์ จะทำให้กล่องงานเต็มเร็ว)'),
       h('div', { class: 'field-note' }, `key ปัจจุบัน: ${maskKey(getApiKey())}`),
@@ -492,6 +495,7 @@ function settingsPanel() {
             maxOutputTokens: Math.min(16000, Math.max(256, Math.round(+maxOut.value || s.maxOutputTokens))),
             crt: crt.checked,
             autopilot: auto.checked,
+            webSearch: web.checked,
           });
           bus.emit('spend:update', { used: usedToday(), limit: state.settings.dailyTokenLimit });
           bus.emit('toast', { kind: 'ok', text: mode === 'live' ? 'เปิดโหมดใช้งานจริงแล้ว ลูกเรือจะเรียก Claude จริง' : 'ใช้โหมดตัวอย่าง' });

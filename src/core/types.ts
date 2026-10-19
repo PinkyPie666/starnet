@@ -77,6 +77,7 @@ export interface Settings {
   maxOutputTokens: number;
   crt: boolean;
   autopilot: boolean;
+  webSearch: boolean;
 }
 
 export interface RunUsage {

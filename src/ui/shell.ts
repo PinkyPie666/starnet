@@ -8,6 +8,7 @@ import { stopAgent, stopAll } from '../app';
 import { usedToday } from '../agents/spend';
 import { avatarImg, btn, fmtTokens, h } from './dom';
 import { STATUS_TH, timeAgoTh } from './th';
+import { getLang, setLang, tr } from './i18n';
 import { icon } from './icons';
 
 export interface ShellRefs {
@@ -27,6 +28,13 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
 
   // ---- top bar ----
   const modeBadge = h('button', { class: 'mode-badge', type: 'button', title: 'สลับโหมดได้ในหน้าตั้งค่า', on: { click: () => openPanel('settings') } });
+  const lang = getLang();
+  const langBtn = h(
+    'button',
+    { class: 'lang-toggle', type: 'button', title: lang === 'th' ? 'Switch to English' : 'เปลี่ยนเป็นภาษาไทย', on: { click: () => setLang(lang === 'th' ? 'en' : 'th') } },
+    h('span', { class: lang === 'th' ? 'on' : '' }, 'ไทย'),
+    h('span', { class: lang === 'en' ? 'on' : '' }, 'EN'),
+  );
   const spendMeter = h('div', { class: 'meter' }, h('i'));
   const spendLabel = h('span', { class: 'spend-label' });
   const spend = h('div', { class: 'spend', title: 'จำนวนโทเคนที่ใช้วันนี้ (โหมดใช้งานจริง)' }, spendLabel, spendMeter);
@@ -48,6 +56,7 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
     { class: 'topbar panel' },
     h('div', { class: 'logo' }, 'STARNET', h('small', null, 'ศูนย์บัญชาการลูกเรือ AI')),
     modeBadge,
+    langBtn,
     spend,
     h('div', { class: 'top-spacer' }),
     h(
@@ -322,7 +331,7 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
 
   function clearOutbox() {
     if (!state.results.length) return;
-    if (!confirm(`ลบงานที่เสร็จทั้งหมด ${state.results.length} ชิ้น? (ดาวน์โหลดเก็บไว้ก่อนได้)`)) return;
+    if (!confirm(tr(`ลบงานที่เสร็จทั้งหมด ${state.results.length} ชิ้น? (ดาวน์โหลดเก็บไว้ก่อนได้)`))) return;
     clearResults();
     renderOutbox();
   }
@@ -420,7 +429,7 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
     void (el as HTMLElement | null)?.offsetWidth;
     el?.classList.add('flash');
     const r = state.results.find((x) => x.id === resultId);
-    if (r) toast('ok', `${r.agentName} ส่งงาน "${r.title}" เข้ากล่องงานที่เสร็จแล้ว`);
+    if (r) toast('ok', `${r.agentName} ส่งผลงาน "${r.title}" เข้ากล่องงานที่เสร็จแล้ว`);
   });
   bus.on('settings:update', paintMode);
   bus.on('spend:update', paintSpend);

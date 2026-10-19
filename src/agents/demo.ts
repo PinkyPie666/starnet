@@ -3,6 +3,8 @@
 
 import type { Runner } from '../core/scheduler';
 import type { ClassId, Task } from '../core/types';
+import { getLang } from '../ui/i18n';
+import { SCRIPTS_EN } from './demo-en';
 
 function topicOf(prompt: string): string {
   const t = prompt.replace(/\s+/g, ' ').trim().replace(/[.?!]+$/, '');
@@ -209,7 +211,8 @@ ${NOTE}${upstreamNote(input)}**ขอบเขต:** เว็บแบบ stati
 
 export function demoScript(cls: ClassId, task: Task): string {
   const topic = topicOf(task.prompt);
-  return SCRIPTS[cls](topic, hash(task.prompt + task.id), task.input);
+  const scripts = getLang() === 'en' ? SCRIPTS_EN : SCRIPTS;
+  return scripts[cls](topic, hash(task.prompt + task.id), task.input);
 }
 
 // Thai has no spaces between words, so split by word where the browser can.

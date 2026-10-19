@@ -24,7 +24,7 @@ export const scheduler = new Scheduler({
     const projected = estimateIn + state.settings.maxOutputTokens;
     const inFlight = [...reserved.values()].reduce((a, b) => a + b, 0);
     if (!canSpend(state.settings.dailyTokenLimit, projected + inFlight)) {
-      return `Daily token limit reached (${usedToday().toLocaleString()} of ${state.settings.dailyTokenLimit.toLocaleString()} used). Raise it in Settings or try tomorrow.`;
+      return `ถึงเพดานโทเคนรายวันแล้ว (ใช้ไป ${usedToday().toLocaleString()} จาก ${state.settings.dailyTokenLimit.toLocaleString()}) เพิ่มเพดานได้ในหน้าตั้งค่า หรือรอพรุ่งนี้`;
     }
     reserved.set(task.id, projected);
     return null;
@@ -40,13 +40,13 @@ for (const evt of ['task:done', 'task:error', 'task:stopped'] as const) {
   bus.on(evt, (t) => reserved.delete(t.id));
 }
 
-export function assignTask(agentId: string, prompt: string): Task | null {
+export function assignTask(agentId: string, prompt: string, input: string | null = null): Task | null {
   const agent = getAgent(agentId);
   if (!agent || !prompt.trim()) return null;
   if (scheduler.isBusy(agentId)) {
-    bus.emit('toast', { kind: 'warn', text: `${agent.name} is busy. The task was queued.` });
+    bus.emit('toast', { kind: 'warn', text: `${agent.name} ยังทำงานอื่นอยู่ งานนี้จะต่อคิวไว้ก่อน` });
   }
-  return scheduler.submit(agentId, prompt.trim(), { mode: state.settings.mode, model: agent.model });
+  return scheduler.submit(agentId, prompt.trim(), { mode: state.settings.mode, model: agent.model, input });
 }
 
 export function runPipeline(agentIds: string[], prompt: string) {

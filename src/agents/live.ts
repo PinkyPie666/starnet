@@ -28,7 +28,7 @@ export function setApiKey(key: string): void {
 }
 
 export function maskKey(key: string): string {
-  if (!key) return 'none';
+  if (!key) return 'ยังไม่ได้ใส่';
   return key.length <= 12 ? '****' : `${key.slice(0, 7)}...${key.slice(-4)}`;
 }
 
@@ -38,7 +38,7 @@ const loadSdk = () => (sdkPromise ??= import('@anthropic-ai/sdk'));
 
 export function buildUserMessage(task: Task): string {
   if (!task.input) return task.prompt;
-  return `Mission brief from the operator:\n${task.prompt}\n\nOutput from the previous crew member (your input for this step):\n<previous_output>\n${task.input}\n</previous_output>\n\nDo your part of the mission using that input.`;
+  return `Mission brief from the operator:\n${task.prompt}\n\nWork handed to you (output from a previous crew member or a document from the operator):\n<previous_output>\n${task.input}\n</previous_output>\n\nDo your part of the mission using that material.`;
 }
 
 export class LiveError extends Error {
@@ -54,7 +54,7 @@ export class LiveError extends Error {
 export function liveRunner(cls: ClassId, maxTokens: number): Runner {
   return async ({ task, signal, text }) => {
     const apiKey = getApiKey();
-    if (!apiKey) throw new LiveError('No API key set. Open Settings and paste your Anthropic key, or switch to Demo mode.', 'auth');
+    if (!apiKey) throw new LiveError('ยังไม่ได้ใส่ API key เปิดหน้าตั้งค่าแล้ววาง key ของ Anthropic หรือสลับกลับไปโหมดตัวอย่าง', 'auth');
     const mod = await loadSdk();
     const Anthropic = mod.default;
     const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true, maxRetries: 1 });
@@ -80,9 +80,9 @@ export function liveRunner(cls: ClassId, maxTokens: number): Runner {
       stream.on('text', (delta: string) => text(delta));
       const msg: any = await stream.finalMessage();
       if (msg.stop_reason === 'refusal') {
-        throw new LiveError('The model declined this request. Try rephrasing the mission.', 'refusal');
+        throw new LiveError('โมเดลปฏิเสธคำขอนี้ ลองเขียนคำสั่งใหม่ด้วยถ้อยคำอื่น', 'refusal');
       }
-      if (msg.stop_reason === 'max_tokens') text(`\n\n_[Stopped at the ${maxTokens}-token output limit set in Settings.]_`);
+      if (msg.stop_reason === 'max_tokens') text(`\n\n_[หยุดที่เพดาน ${maxTokens} โทเคนต่องานตามที่ตั้งไว้ในหน้าตั้งค่า]_`);
       return { input: msg.usage?.input_tokens ?? 0, output: msg.usage?.output_tokens ?? 0 };
     } catch (err: any) {
       if (signal.aborted || err?.name === 'AbortError' || err instanceof Anthropic.APIUserAbortError) {
@@ -98,11 +98,29 @@ export function liveRunner(cls: ClassId, maxTokens: number): Runner {
 function toLiveError(err: any, A: SDK['default']): LiveError {
   if (err instanceof LiveError) return err;
   if (err instanceof A.AuthenticationError || err instanceof A.PermissionDeniedError)
-    return new LiveError('Bad or unauthorized API key. Check the key in Settings.', 'auth');
-  if (err instanceof A.RateLimitError) return new LiveError('Rate limited by the API. Wait a moment and retry, or run fewer agents at once.', 'rate');
-  if (err instanceof A.APIConnectionError) return new LiveError('Network error: could not reach api.anthropic.com. Check your connection.', 'network');
-  if (err instanceof A.BadRequestError) return new LiveError(`Request rejected: ${err.message}`, 'bad_request');
+    return new LiveError('API key ไม่ถูกต้องหรือไม่มีสิทธิ์ ตรวจ key ในหน้าตั้งค่า', 'auth');
+  if (err instanceof A.RateLimitError) return new LiveError('ส่งคำขอถี่เกินไป (rate limit) รอสักครู่แล้วลองใหม่ หรือให้ทำงานพร้อมกันน้อยลง', 'rate');
+  if (err instanceof A.APIConnectionError) return new LiveError('เชื่อมต่อ api.anthropic.com ไม่ได้ ตรวจสอบอินเทอร์เน็ต', 'network');
+  if (err instanceof A.BadRequestError) return new LiveError(`คำขอถูกปฏิเสธ: ${err.message}`, 'bad_request');
   if (err instanceof A.APIError && (err.status === 529 || (err.status ?? 0) >= 500))
-    return new LiveError('The API is overloaded right now. Retry in a minute.', 'overloaded');
-  return new LiveError(err?.message ?? 'Unknown error', 'unknown');
+    return new LiveError('เซิร์ฟเวอร์ของ Anthropic งานล้นอยู่ ลองใหม่ในอีกสักนาที', 'overloaded');
+  return new LiveError(err?.message ?? 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ', 'unknown');
+}
+
+/** One tiny request to confirm a key works. Returns the tokens it used. */
+export async function testKey(key: string): Promise<number> {
+  if (!key) throw new LiveError('ยังไม่ได้ใส่ API key', 'auth');
+  const mod = await loadSdk();
+  const Anthropic = mod.default;
+  const client = new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true, maxRetries: 0 });
+  try {
+    const msg = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 8,
+      messages: [{ role: 'user', content: 'Reply with the single word: ok' }],
+    });
+    return (msg.usage?.input_tokens ?? 0) + (msg.usage?.output_tokens ?? 0);
+  } catch (err) {
+    throw toLiveError(err, Anthropic);
+  }
 }

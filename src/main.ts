@@ -6,6 +6,7 @@ import { addAgent, bus, load, makeAgent, state } from './core/store';
 import { CLASSES } from './agents/classes';
 import { assignTask, runPipeline, scheduler } from './app';
 import { mountShell } from './ui/shell';
+import { installThaiFonts } from './ui/th';
 import type Phaser from 'phaser';
 import type { ClassId } from './core/types';
 
@@ -13,6 +14,7 @@ let game: Phaser.Game | null = null;
 let stationMod: typeof import('./game') | null = null;
 
 async function boot() {
+  installThaiFonts();
   await load();
   const root = document.getElementById('app')!;
   const shell = mountShell(root, {
@@ -27,6 +29,7 @@ async function boot() {
     const b = document.getElementById('boot');
     b?.classList.add('gone');
     setTimeout(() => b?.remove(), 500);
+    setTimeout(() => void import('./ui/panels').then((m) => m.maybeShowHelp()), 700);
   });
 
   startAutopilot();
@@ -65,5 +68,5 @@ function startAutopilot() {
 boot().catch((err) => {
   console.error(err);
   const b = document.getElementById('boot');
-  if (b) b.querySelector('.boot-sub')!.textContent = 'BOOT FAILED. RELOAD TO RETRY.';
+  if (b) b.querySelector('.boot-sub')!.textContent = 'โหลดไม่สำเร็จ ลองรีเฟรชหน้าเว็บ';
 });

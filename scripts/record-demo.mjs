@@ -10,6 +10,7 @@ mkdirSync(dir, { recursive: true });
 
 const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 960, height: 600 } });
+await page.addInitScript(() => localStorage.setItem('starnet.helpSeen', '1'));
 await page.goto(url);
 await page.waitForFunction(() => window.__starnet?.game);
 await page.waitForTimeout(1500);

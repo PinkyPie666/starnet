@@ -27,6 +27,7 @@ for (const vp of VIEWPORTS) {
   const page = await ctx.newPage();
   page.on('pageerror', (e) => problems.push(`${vp.name}: pageerror ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && problems.push(`${vp.name}: console ${m.text()}`));
+  await page.addInitScript(() => localStorage.setItem('starnet.helpSeen', '1'));
   await page.goto(url);
   await page.waitForFunction(() => window.__starnet?.game);
   await page.waitForTimeout(2000);
@@ -73,7 +74,7 @@ for (const vp of VIEWPORTS) {
   await shot('agent-card');
   await S(() => window.__starnet.bus.emit('ui:select', { agentId: null }));
 
-  for (const panel of ['task', 'pipeline', 'recruit', 'settings']) {
+  for (const panel of ['help', 'task', 'pipeline', 'recruit', 'settings']) {
     await S((p) => window.__starnet.bus.emit('ui:open', { panel: p }), panel);
     await page.waitForTimeout(600);
     await shot(`panel-${panel}`);

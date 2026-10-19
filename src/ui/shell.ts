@@ -1,12 +1,13 @@
 // The always-on HUD: top bar, crew list, agent card, outbox drawer, toasts.
 // Heavier dialogs live in panels.ts and are loaded on first use.
 
-import { bus, getAgent, markRead, state, updateAgent, updateSettings } from '../core/store';
+import { bus, clearResults, getAgent, markRead, state, updateAgent, updateSettings } from '../core/store';
 import type { Agent, PanelId, Result } from '../core/types';
 import { CLASSES, MODELS, xpForLevel } from '../agents/classes';
 import { stopAgent, stopAll } from '../app';
 import { usedToday } from '../agents/spend';
-import { avatarImg, btn, fmtTokens, h, timeAgo } from './dom';
+import { avatarImg, btn, fmtTokens, h } from './dom';
+import { STATUS_TH, timeAgoTh } from './th';
 import { icon } from './icons';
 
 export interface ShellRefs {
@@ -25,16 +26,16 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
   root.querySelectorAll(':scope > :not(#boot)').forEach((n) => n.remove());
 
   // ---- top bar ----
-  const modeBadge = h('button', { class: 'mode-badge', type: 'button', title: 'Switch mode in Settings', on: { click: () => openPanel('settings') } });
+  const modeBadge = h('button', { class: 'mode-badge', type: 'button', title: 'สลับโหมดได้ในหน้าตั้งค่า', on: { click: () => openPanel('settings') } });
   const spendMeter = h('div', { class: 'meter' }, h('i'));
   const spendLabel = h('span', { class: 'spend-label' });
-  const spend = h('div', { class: 'spend', title: 'Tokens used today (Live mode)' }, spendLabel, spendMeter);
+  const spend = h('div', { class: 'spend', title: 'จำนวนโทเคนที่ใช้วันนี้ (โหมดใช้งานจริง)' }, spendLabel, spendMeter);
   const outboxCount = h('span', { class: 'badge-count' });
-  const outboxBtn = btn('Outbox', { icon: 'inbox', onClick: () => toggleOutbox() });
+  const outboxBtn = btn('งานที่เสร็จ', { icon: 'inbox', onClick: () => toggleOutbox() });
   outboxBtn.append(outboxCount);
   outboxBtn.querySelector('span')!.classList.add('label-wide');
   outboxBtn.classList.add('hide-mobile');
-  const crtBtn = btn('CRT', { icon: 'tv', kind: 'ghost', iconOnly: true, title: 'Toggle CRT scanlines', onClick: () => updateSettings({ crt: !state.settings.crt }) });
+  const crtBtn = btn('CRT', { icon: 'tv', kind: 'ghost', iconOnly: true, title: 'เปิด/ปิดเส้นจอ CRT', onClick: () => updateSettings({ crt: !state.settings.crt }) });
   crtBtn.classList.add('hide-mobile');
   const mk = (label: string, ic: string, fn: () => void, kind?: 'primary' | 'amber', extra = '') => {
     const b = btn(label, { icon: ic, kind, onClick: fn });
@@ -45,20 +46,21 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
   const topbar = h(
     'header',
     { class: 'topbar panel' },
-    h('div', { class: 'logo' }, 'STARNET', h('small', null, 'CREW CONTROL')),
+    h('div', { class: 'logo' }, 'STARNET', h('small', null, 'ศูนย์บัญชาการลูกเรือ AI')),
     modeBadge,
     spend,
     h('div', { class: 'top-spacer' }),
     h(
       'div',
       { class: 'top-actions' },
-      mk('New task', 'send', () => openPanel('task'), 'primary', 'hide-mobile'),
-      mk('Pipeline', 'workflow', () => openPanel('pipeline'), undefined, 'hide-mobile'),
-      mk('Recruit', 'user-plus', () => openPanel('recruit'), 'amber', 'hide-mobile'),
+      mk('สั่งงาน', 'send', () => openPanel('task'), 'primary', 'hide-mobile'),
+      mk('งานต่อกัน', 'workflow', () => openPanel('pipeline'), undefined, 'hide-mobile'),
+      mk('รับลูกเรือ', 'user-plus', () => openPanel('recruit'), 'amber', 'hide-mobile'),
       outboxBtn,
-      btn('Stop all', { icon: 'stop', kind: 'danger', iconOnly: true, title: 'Stop every running agent', onClick: () => stopAll() }),
+      btn('หยุดทั้งหมด', { icon: 'stop', kind: 'danger', iconOnly: true, title: 'หยุดลูกเรือทุกคนที่กำลังทำงาน', onClick: () => stopAll() }),
       crtBtn,
-      btn('Settings', { icon: 'settings', iconOnly: true, kind: 'ghost', onClick: () => openPanel('settings') }),
+      btn('วิธีใช้', { icon: 'help', iconOnly: true, kind: 'ghost', onClick: () => openPanel('help') }),
+      btn('ตั้งค่า', { icon: 'settings', iconOnly: true, kind: 'ghost', onClick: () => openPanel('settings') }),
     ),
   );
 
@@ -66,25 +68,25 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
   const crewList = h('div', { class: 'crew-list', role: 'list' });
   const side = h(
     'aside',
-    { class: 'side panel', 'aria-label': 'Crew' },
-    h('div', { class: 'side-head' }, h('div', { class: 'panel-title' }, icon('users', 14), 'Crew'), h('span', { class: 'crew-count stext IDLE' })),
+    { class: 'side panel', 'aria-label': 'ลูกเรือ' },
+    h('div', { class: 'side-head' }, h('div', { class: 'panel-title' }, icon('users', 14), 'ลูกเรือ'), h('span', { class: 'crew-count stext IDLE' })),
     crewList,
     h(
       'div',
       { class: 'side-foot' },
-      btn('Task', { icon: 'send', kind: 'primary', small: true, onClick: () => openPanel('task') }),
-      btn('Chain', { icon: 'workflow', small: true, onClick: () => openPanel('pipeline') }),
-      btn('Recruit', { icon: 'user-plus', kind: 'amber', small: true, onClick: () => openPanel('recruit') }),
+      btn('สั่งงาน', { icon: 'send', kind: 'primary', small: true, onClick: () => openPanel('task') }),
+      btn('ต่อกัน', { icon: 'workflow', small: true, onClick: () => openPanel('pipeline') }),
+      btn('รับเพิ่ม', { icon: 'user-plus', kind: 'amber', small: true, onClick: () => openPanel('recruit') }),
     ),
   );
 
   // ---- world ----
-  const world = h('main', { class: 'world', 'aria-label': 'Station view' });
-  const zoomIn = btn('Zoom in', { icon: 'zoom-in', iconOnly: true, onClick: () => refs.onZoom(1) });
-  const zoomOut = btn('Zoom out', { icon: 'zoom-out', iconOnly: true, onClick: () => refs.onZoom(-1) });
+  const world = h('main', { class: 'world', 'aria-label': 'มุมมองสถานี' });
+  const zoomIn = btn('ซูมเข้า', { icon: 'zoom-in', iconOnly: true, onClick: () => refs.onZoom(1) });
+  const zoomOut = btn('ซูมออก', { icon: 'zoom-out', iconOnly: true, onClick: () => refs.onZoom(-1) });
   world.append(
     h('div', { class: 'world-hud' }, zoomIn, zoomOut),
-    h('div', { class: 'world-hint' }, 'Drag to pan. Wheel to zoom. Click a crew member.'),
+    h('div', { class: 'world-hint' }, 'ลากเพื่อเลื่อนจอ / ล้อเมาส์เพื่อซูม / คลิกลูกเรือเพื่อดูงาน'),
   );
 
   // ---- agent card ----
@@ -95,12 +97,17 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
   const outList = h('div', { class: 'outbox-list' });
   const drawer = h(
     'aside',
-    { class: 'drawer panel', 'aria-label': 'Finished work' },
+    { class: 'drawer panel', 'aria-label': 'งานที่เสร็จแล้ว' },
     h(
       'div',
       { class: 'modal-head' },
-      h('div', { class: 'panel-title' }, icon('inbox', 14), 'Outbox / Finished work'),
-      btn('Close', { icon: 'x', iconOnly: true, kind: 'ghost', small: true, onClick: () => toggleOutbox(false) }),
+      h('div', { class: 'panel-title' }, icon('inbox', 14), 'งานที่เสร็จแล้ว'),
+      h(
+        'div',
+        { class: 'row' },
+        btn('ล้างทั้งหมด', { icon: 'trash', kind: 'ghost', small: true, onClick: () => clearOutbox() }),
+        btn('ปิด', { icon: 'x', iconOnly: true, kind: 'ghost', small: true, onClick: () => toggleOutbox(false) }),
+      ),
     ),
     outList,
   );
@@ -110,11 +117,11 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
   const nav = h(
     'nav',
     { class: 'mobile-nav panel' },
-    btn('Crew', { icon: 'users', onClick: () => toggleSide() }),
-    btn('Task', { icon: 'send', kind: 'primary', onClick: () => openPanel('task') }),
-    btn('Chain', { icon: 'workflow', onClick: () => openPanel('pipeline') }),
-    btn('Recruit', { icon: 'user-plus', kind: 'amber', onClick: () => openPanel('recruit') }),
-    btn('Outbox', { icon: 'inbox', onClick: () => toggleOutbox() }),
+    btn('ลูกเรือ', { icon: 'users', onClick: () => toggleSide() }),
+    btn('สั่งงาน', { icon: 'send', kind: 'primary', onClick: () => openPanel('task') }),
+    btn('ต่อกัน', { icon: 'workflow', onClick: () => openPanel('pipeline') }),
+    btn('รับเพิ่ม', { icon: 'user-plus', kind: 'amber', onClick: () => openPanel('recruit') }),
+    btn('งานเสร็จ', { icon: 'inbox', onClick: () => toggleOutbox() }),
   );
 
   const toasts = h('div', { class: 'toasts', 'aria-live': 'polite' });
@@ -146,7 +153,7 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
     const sdot = h('span', { class: 'sdot' });
     const lvl = h('span');
     const name = h('b', null, a.name);
-    const stop = btn('Stop', { icon: 'stop', kind: 'danger', small: true, iconOnly: true, onClick: (e) => (e.stopPropagation(), stopAgent(a.id)) });
+    const stop = btn('หยุด', { icon: 'stop', kind: 'danger', small: true, iconOnly: true, onClick: (e) => (e.stopPropagation(), stopAgent(a.id)) });
     const el = h(
       'div',
       {
@@ -165,7 +172,7 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
         'div',
         { class: 'crew-actions' },
         stop,
-        btn('Assign task', { icon: 'send', small: true, iconOnly: true, onClick: (e) => (e.stopPropagation(), openPanel('task', a.id)) }),
+        btn('สั่งงานคนนี้', { icon: 'send', small: true, iconOnly: true, onClick: (e) => (e.stopPropagation(), openPanel('task', a.id)) }),
       ),
       h('div', { class: 'crew-meta' }, lvl, h('div', { class: 'meter', title: 'XP', style: { '--c': '#3aa0ff' } as any }, xp)),
       h('div', { class: 'crew-status' }, sdot, stext, h('div', { class: 'meter' }, meter)),
@@ -182,10 +189,10 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
     c.name.textContent = a.name;
     c.status.className = `sdot ${a.status}`;
     c.stext.className = `stext ${a.status}`;
-    c.stext.textContent = a.status;
+    c.stext.textContent = STATUS_TH[a.status];
     c.meter.style.width = `${Math.round((a.status === 'DONE' ? 1 : a.status === 'WORKING' ? a.progress : 0) * 100)}%`;
     c.meter.style.setProperty('--c', a.status === 'DONE' ? 'var(--amber)' : a.status === 'ERROR' ? 'var(--red)' : 'var(--teal)');
-    c.lvl.textContent = `LV ${a.level}`;
+    c.lvl.textContent = `เลเวล ${a.level}`;
     c.xp.style.width = `${Math.round((a.xp / xpForLevel(a.level)) * 100)}%`;
     c.stop.disabled = a.status !== 'WORKING';
     c.el.classList.toggle('selected', a.id === selected);
@@ -193,7 +200,7 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
 
   function renderCrew() {
     crewList.replaceChildren(...state.agents.map(crewCard));
-    side.querySelector('.crew-count')!.textContent = `${state.agents.length} ABOARD`;
+    side.querySelector('.crew-count')!.textContent = `${state.agents.length} คนบนสถานี`;
   }
 
   // rAF-batched repaint so streaming progress never thrashes layout
@@ -230,10 +237,10 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
       card.style.setProperty('--cls', cls.color);
       const model = h(
         'select',
-        { 'aria-label': 'Model', on: { change: (e: Event) => updateAgent(a.id, { model: (e.target as HTMLSelectElement).value as Agent['model'] }) } },
+        { 'aria-label': 'โมเดล', on: { change: (e: Event) => updateAgent(a.id, { model: (e.target as HTMLSelectElement).value as Agent['model'] }) } },
         ...MODELS.map((m) => h('option', { value: m.id, selected: m.id === a.model }, `${m.label} (${m.note})`)),
       );
-      streamEl = h('div', { class: 'stream', tabindex: 0, 'aria-label': 'Live output' });
+      streamEl = h('div', { class: 'stream', tabindex: 0, 'aria-label': 'ผลงานที่กำลังเขียน' });
       const big = avatarImg(a.look, cls.color);
       card.replaceChildren(
         h(
@@ -244,24 +251,24 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
             'div',
             null,
             h('div', { class: 'ac-name' }, a.name),
-            h('div', { class: 'ac-sub' }, `${cls.title}  LV ${a.level}  ${a.xp}/${xpForLevel(a.level)} XP`),
+            h('div', { class: 'ac-sub' }, `${cls.title}  เลเวล ${a.level}  ${a.xp}/${xpForLevel(a.level)} XP`),
             h('div', { class: 'ac-sub' }, cls.blurb),
           ),
-          btn('Close', { icon: 'x', iconOnly: true, kind: 'ghost', small: true, onClick: () => bus.emit('ui:select', { agentId: null }) }),
+          btn('ปิด', { icon: 'x', iconOnly: true, kind: 'ghost', small: true, onClick: () => bus.emit('ui:select', { agentId: null }) }),
         ),
         h(
           'div',
           { class: 'ac-body' },
-          h('div', { class: 'row' }, h('span', { class: `sdot ${a.status}` }), h('span', { class: `stext ${a.status}` }, a.status), h('div', { class: 'meter grow' }, h('i', { style: { width: `${Math.round(a.progress * 100)}%` } }))),
+          h('div', { class: 'row' }, h('span', { class: `sdot ${a.status}` }), h('span', { class: `stext ${a.status}` }, STATUS_TH[a.status]), h('div', { class: 'meter grow' }, h('i', { style: { width: `${Math.round(a.progress * 100)}%` } }))),
           streamEl,
-          h('label', { class: 'field' }, 'Model (Live mode)', model),
+          h('label', { class: 'field' }, 'โมเดล (ใช้ในโหมดใช้งานจริง)', model),
           h(
             'div',
             { class: 'row' },
-            btn('Assign task', { icon: 'send', kind: 'primary', small: true, onClick: () => openPanel('task', a.id) }),
-            btn('Stop', { icon: 'stop', kind: 'danger', small: true, onClick: () => stopAgent(a.id) }),
-            btn('Focus', { icon: 'crosshair', small: true, onClick: () => refs.onFocus(a.id) }),
-            task?.status === 'done' ? btn('Open result', { icon: 'inbox', small: true, onClick: () => openResultForTask(task.id) }) : null,
+            btn('สั่งงาน', { icon: 'send', kind: 'primary', small: true, onClick: () => openPanel('task', a.id) }),
+            btn('หยุด', { icon: 'stop', kind: 'danger', small: true, onClick: () => stopAgent(a.id) }),
+            btn('ตามดู', { icon: 'crosshair', small: true, onClick: () => refs.onFocus(a.id) }),
+            task?.status === 'done' ? btn('เปิดผลงาน', { icon: 'inbox', small: true, onClick: () => openResultForTask(task.id) }) : null,
           ),
         ),
       );
@@ -271,7 +278,7 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
       row.querySelector('.sdot')!.className = `sdot ${a.status}`;
       const st = row.querySelector('.stext')!;
       st.className = `stext ${a.status}`;
-      st.textContent = a.status;
+      st.textContent = STATUS_TH[a.status];
       (row.querySelector('.meter i') as HTMLElement).style.width = `${Math.round((a.status === 'DONE' ? 1 : a.progress) * 100)}%`;
     }
   }
@@ -279,8 +286,8 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
   function fillStream(text: string, a: Agent, error: string | null) {
     if (!streamEl) return;
     streamEl.classList.toggle('err', a.status === 'ERROR');
-    if (a.status === 'ERROR' && error) streamEl.textContent = `ERROR: ${error}`;
-    else streamEl.textContent = text || (a.status === 'WORKING' ? 'Walking to a desk...' : 'Idle. Assign a task to put this crew member to work.');
+    if (a.status === 'ERROR' && error) streamEl.textContent = `ผิดพลาด: ${error}`;
+    else streamEl.textContent = text || (a.status === 'WORKING' ? 'กำลังเดินไปที่โต๊ะ...' : 'ว่างอยู่ กดปุ่ม สั่งงาน เพื่อให้คนนี้เริ่มทำงาน');
     if (a.status === 'WORKING') streamEl.append(h('span', { class: 'cursor' }));
     streamEl.scrollTop = streamEl.scrollHeight;
   }
@@ -308,14 +315,21 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
         },
       },
       agent ? avatarImg(agent.look, cls.color) : h('span'),
-      h('div', { style: { minWidth: '0' } }, h('div', { class: 'r-title' }, r.title), h('div', { class: 'r-sub' }, `${r.agentName} / ${cls.title} / ${timeAgo(r.createdAt)}${r.mode === 'demo' ? ' / demo' : ''}`)),
+      h('div', { style: { minWidth: '0' } }, h('div', { class: 'r-title' }, r.title), h('div', { class: 'r-sub' }, `${r.agentName} / ${cls.title} / ${timeAgoTh(r.createdAt)}${r.mode === 'demo' ? ' / ตัวอย่าง' : ''}`)),
       icon('chevron-right', 16),
     );
   }
 
+  function clearOutbox() {
+    if (!state.results.length) return;
+    if (!confirm(`ลบงานที่เสร็จทั้งหมด ${state.results.length} ชิ้น? (ดาวน์โหลดเก็บไว้ก่อนได้)`)) return;
+    clearResults();
+    renderOutbox();
+  }
+
   function renderOutbox() {
     const items = [...state.results].reverse();
-    outList.replaceChildren(...(items.length ? items.map(resultItem) : [h('div', { class: 'empty' }, 'No finished work yet. Assign a task and the crew member will carry the result here.')]));
+    outList.replaceChildren(...(items.length ? items.map(resultItem) : [h('div', { class: 'empty' }, 'ยังไม่มีงานที่เสร็จ สั่งงานให้ลูกเรือ แล้วเขาจะถือผลงานมาส่งที่นี่')]));
     paintOutboxCount();
   }
 
@@ -326,9 +340,9 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
 
   function paintMode() {
     const live = state.settings.mode === 'live';
-    modeBadge.textContent = live ? 'LIVE' : 'DEMO';
+    modeBadge.textContent = live ? 'ใช้งานจริง' : 'โหมดตัวอย่าง';
     modeBadge.classList.toggle('live', live);
-    modeBadge.title = live ? 'Live mode: real Claude calls with your key' : 'Demo mode: scripted agents, no key needed';
+    modeBadge.title = live ? 'โหมดใช้งานจริง: เรียก Claude จริงด้วย key ของคุณ' : 'โหมดตัวอย่าง: ข้อความจำลอง ไม่ต้องมี key กดเพื่อเปลี่ยนเป็นใช้งานจริง';
     paintSpend();
     document.body.classList.toggle('crt-on', state.settings.crt);
     crtBtn.setAttribute('aria-pressed', String(state.settings.crt));
@@ -338,7 +352,7 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
     const live = state.settings.mode === 'live';
     const used = usedToday();
     const lim = state.settings.dailyTokenLimit;
-    spendLabel.textContent = live ? `${fmtTokens(used)} / ${fmtTokens(lim)} tok today` : 'no tokens used';
+    spendLabel.textContent = live ? `ใช้ไป ${fmtTokens(used)} / ${fmtTokens(lim)} โทเคนวันนี้` : 'ยังไม่เสียค่าใช้จ่าย';
     const pct = live ? Math.min(1, used / lim) : 0;
     (spendMeter.firstChild as HTMLElement).style.width = `${pct * 100}%`;
     spendMeter.classList.toggle('warn', pct > 0.7);
@@ -358,7 +372,7 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
   // ---- bus wiring ----
   bus.on('agent:add', (a) => {
     crewList.append(crewCard(a));
-    side.querySelector('.crew-count')!.textContent = `${state.agents.length} ABOARD`;
+    side.querySelector('.crew-count')!.textContent = `${state.agents.length} คนบนสถานี`;
   });
   bus.on('agent:remove', ({ id }) => {
     cards.get(id)?.el.remove();
@@ -382,7 +396,7 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
     if (agentId !== selected || !streamEl) return;
     const cursor = streamEl.querySelector('.cursor');
     const atBottom = streamEl.scrollHeight - streamEl.scrollTop - streamEl.clientHeight < 40;
-    if (streamEl.firstChild?.nodeType === Node.TEXT_NODE && /^Walking to a desk/.test(streamEl.firstChild.textContent ?? '')) streamEl.firstChild.textContent = '';
+    if (streamEl.firstChild?.nodeType === Node.TEXT_NODE && /^กำลังเดินไปที่โต๊ะ/.test(streamEl.firstChild.textContent ?? '')) streamEl.firstChild.textContent = '';
     if (cursor) cursor.before(text);
     else streamEl.append(text);
     if (atBottom) streamEl.scrollTop = streamEl.scrollHeight;
@@ -406,7 +420,7 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
     void (el as HTMLElement | null)?.offsetWidth;
     el?.classList.add('flash');
     const r = state.results.find((x) => x.id === resultId);
-    if (r) toast('ok', `${r.agentName} delivered "${r.title}" to the Outbox`);
+    if (r) toast('ok', `${r.agentName} ส่งงาน "${r.title}" เข้ากล่องงานที่เสร็จแล้ว`);
   });
   bus.on('settings:update', paintMode);
   bus.on('spend:update', paintSpend);

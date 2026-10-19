@@ -107,4 +107,4 @@ export interface Events extends Record<string, unknown> {
   'toast': { kind: 'info' | 'ok' | 'warn' | 'error'; text: string };
 }
 
-export type PanelId = 'task' | 'outbox' | 'recruit' | 'pipeline' | 'settings' | 'result' | 'agent';
+export type PanelId = 'task' | 'outbox' | 'recruit' | 'pipeline' | 'settings' | 'result' | 'agent' | 'help';

@@ -15,10 +15,11 @@ export const DEFAULT_SETTINGS: Settings = {
   dailyTokenLimit: 200_000,
   maxOutputTokens: 2048,
   crt: true,
-  autopilot: true,
+  autopilot: false,
 };
 
 interface Saved {
+  v?: number;
   agents: Agent[];
   results: Result[];
   pipelines: Pipeline[];
@@ -108,6 +109,11 @@ export function markRead(resultId: string): void {
   }
 }
 
+export function clearResults(): void {
+  state.results = [];
+  save();
+}
+
 export function deleteResult(resultId: string): void {
   state.results = state.results.filter((r) => r.id !== resultId);
   save();
@@ -120,6 +126,7 @@ export function save(): void {
   saveTimer = setTimeout(() => {
     saveTimer = null;
     const data: Saved = {
+      v: 2,
       agents: state.agents.map((a) => ({ ...a })),
       results: state.results.slice(-200),
       pipelines: state.pipelines.slice(-50),
@@ -143,9 +150,11 @@ export async function load(): Promise<void> {
     state.results = saved.results ?? [];
     state.pipelines = (saved.pipelines ?? []).map((p) => (p.status === 'running' ? { ...p, status: 'stopped' } : p));
     state.tasks = (saved.tasks ?? []).map((t) =>
-      t.status === 'running' || t.status === 'queued' ? { ...t, status: 'stopped', error: 'Interrupted by page reload' } : t,
+      t.status === 'running' || t.status === 'queued' ? { ...t, status: 'stopped', error: 'ถูกหยุดเพราะรีเฟรชหน้าเว็บ' } : t,
     );
     state.settings = { ...DEFAULT_SETTINGS, ...saved.settings };
+    // v2: autopilot used to default on and flooded the Outbox with demo work
+    if (!saved.v || saved.v < 2) state.settings.autopilot = false;
   } else {
     state.agents = starterCrew();
   }
@@ -210,7 +219,7 @@ bus.on('task:done', (t) => {
   while (xp >= xpForLevel(level)) {
     xp -= xpForLevel(level);
     level++;
-    bus.emit('toast', { kind: 'ok', text: `${a.name} reached level ${level}` });
+    bus.emit('toast', { kind: 'ok', text: `${a.name} เลเวลอัปเป็น ${level}` });
   }
   updateAgent(a.id, { status: 'DONE', progress: 1, xp, level, taskId: null });
   const result: Result = {

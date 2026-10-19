@@ -9,6 +9,7 @@ if (+throttle > 1) {
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: +throttle });
 }
+await page.addInitScript(() => localStorage.setItem('starnet.helpSeen', '1'));
 await page.goto(url);
 await page.waitForFunction(() => window.__starnet?.game);
 await page.waitForTimeout(2500);

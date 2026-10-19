@@ -1,16 +1,21 @@
-// Dialogs, loaded on first use: new task, recruitment, pipeline, settings, result.
+// Dialogs, loaded on first use: how-to guide, new task, recruitment,
+// pipeline, settings and the result viewer.
 
 import { addAgent, bus, deleteResult, getAgent, makeAgent, markRead, state, updateSettings } from '../core/store';
 import type { Agent, ClassId, Look, ModelId, PanelId } from '../core/types';
 import { CLASSES, CLASS_IDS, DEFAULT_MODEL, MODELS } from '../agents/classes';
 import { assignTask, runPipeline, scheduler } from '../app';
-import { getApiKey, maskKey, setApiKey } from '../agents/live';
-import { resetSpend, usedToday } from '../agents/spend';
-import { HAIR_COLORS, HAIR_STYLES, SKIN_TONES, UNIFORMS, UNIFORM_NAMES } from '../game/palette';
+import { getApiKey, maskKey, setApiKey, testKey } from '../agents/live';
+import { addUsage, resetSpend, usedToday } from '../agents/spend';
+import { HAIR_COLORS, SKIN_TONES, UNIFORMS } from '../game/palette';
 import { MAX_CREW_SLOTS } from '../game/atlas';
 import { avatarImg, btn, fmtTokens, fullBody, h } from './dom';
 import { icon } from './icons';
 import { renderMarkdown } from './markdown';
+import { STATUS_TH } from './th';
+
+const HAIR_STYLES_TH = ['สั้น', 'ยาว', 'ทรงหงอน', 'โกนเกรียน'];
+const UNIFORM_TH = ['น้ำเงินสถานี', 'ทองบัญชาการ', 'เขียววิศวกร', 'ม่วงวิทยาศาสตร์', 'แดงรักษาการณ์', 'เทาปฏิบัติการ'];
 
 let current: HTMLElement | null = null;
 let lastFocus: Element | null = null;
@@ -27,7 +32,7 @@ function modal(title: string, ic: string, body: Node[], foot: Node[], wide = fal
   const m = h(
     'div',
     { class: `modal panel ${wide ? 'wide' : ''}`, role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
-    h('div', { class: 'modal-head' }, h('div', { class: 'panel-title' }, icon(ic, 14), title), btn('Close', { icon: 'x', iconOnly: true, kind: 'ghost', small: true, onClick: close })),
+    h('div', { class: 'modal-head' }, h('div', { class: 'panel-title' }, icon(ic, 14), title), btn('ปิด', { icon: 'x', iconOnly: true, kind: 'ghost', small: true, onClick: close })),
     h('div', { class: 'modal-body' }, ...body),
     foot.length ? h('div', { class: 'modal-foot' }, ...foot) : null,
   );
@@ -50,13 +55,25 @@ export function open(panel: PanelId, arg?: string) {
   if (panel === 'recruit') return recruitPanel();
   if (panel === 'pipeline') return pipelinePanel();
   if (panel === 'settings') return settingsPanel();
+  if (panel === 'help') return helpPanel();
   if (panel === 'result' && arg) return resultPanel(arg);
 }
 
 function modeNotice() {
   return state.settings.mode === 'live'
-    ? h('div', { class: 'notice' }, icon('key', 16), h('span', null, `Live mode: real Claude calls with your key. Daily guard: ${fmtTokens(usedToday())} of ${fmtTokens(state.settings.dailyTokenLimit)} tokens used.`))
-    : h('div', { class: 'notice warn' }, icon('monitor', 16), h('span', null, 'Demo mode: scripted agents, no key and no cost. Switch to Live in Settings to run real Claude agents.'));
+    ? h(
+        'div',
+        { class: 'notice' },
+        icon('key', 16),
+        h('span', null, `โหมดใช้งานจริง: ลูกเรือจะเรียก Claude จริงด้วย key ของคุณ วันนี้ใช้ไป ${fmtTokens(usedToday())} จากเพดาน ${fmtTokens(state.settings.dailyTokenLimit)} โทเคน`),
+      )
+    : h(
+        'div',
+        { class: 'notice warn' },
+        icon('monitor', 16),
+        h('span', null, 'ตอนนี้เป็นโหมดตัวอย่าง: ผลงานเป็นข้อความจำลองเพื่อดูการทำงาน ไม่ได้ตอบโจทย์ของคุณจริง ถ้าอยากได้งานจริง ไปที่ ตั้งค่า แล้วใส่ API key และเลือก ใช้งานจริง'),
+        btn('ตั้งค่า', { icon: 'settings', small: true, onClick: () => settingsPanel() }),
+      );
 }
 
 function agentPicker(selectedId: string | null, onPick: (a: Agent) => void, filter?: (a: Agent) => boolean) {
@@ -65,13 +82,12 @@ function agentPicker(selectedId: string | null, onPick: (a: Agent) => void, filt
     wrap.replaceChildren(
       ...state.agents.filter(filter ?? (() => true)).map((a) => {
         const cls = CLASSES[a.cls];
-        const b = h(
+        return h(
           'button',
           { class: 'pick', type: 'button', 'aria-pressed': String(a.id === sel), style: { borderColor: a.id === sel ? cls.color : '' }, on: { click: () => (onPick(a), paint(a.id)) } },
           avatarImg(a.look, cls.color),
-          h('div', null, h('span', null, a.name), h('small', null, `${cls.title} / ${a.status}`)),
+          h('div', null, h('span', null, a.name), h('small', null, `${cls.title} / ${STATUS_TH[a.status]}`)),
         );
-        return b;
       }),
     );
   };
@@ -79,12 +95,73 @@ function agentPicker(selectedId: string | null, onPick: (a: Agent) => void, filt
   return wrap;
 }
 
+// ---------------------------------------------------------------- help -----
+
+const HELP_SEEN = 'starnet.helpSeen';
+
+export function maybeShowHelp() {
+  try {
+    if (localStorage.getItem(HELP_SEEN)) return;
+    localStorage.setItem(HELP_SEEN, '1');
+  } catch {
+    return;
+  }
+  helpPanel();
+}
+
+function helpPanel() {
+  const step = (n: number, title: string, body: string) =>
+    h('div', { class: 'help-step' }, h('div', { class: 'help-num' }, String(n)), h('div', null, h('b', null, title), h('p', null, body)));
+  modal(
+    'วิธีใช้ STARNET',
+    'help',
+    [
+      h(
+        'p',
+        { class: 'help-lead' },
+        'STARNET คือออฟฟิศ AI ในรูปแบบเกม ลูกเรือแต่ละคนคือผู้ช่วย AI ที่ถนัดงานคนละแบบ สั่งงานแล้วเขาจะเดินไปนั่งที่โต๊ะ พิมพ์งานให้ดูสดๆ แล้วเดินถือผลงานมาส่งที่กล่องงานที่เสร็จ',
+      ),
+      step(1, 'เลือกโหมด', 'โหมดตัวอย่าง (ค่าเริ่มต้น) ใช้ฟรี แต่เป็นข้อความจำลองไว้ดูการทำงานเฉยๆ ถ้าอยากได้งานจริง ให้ใส่ API key ของ Anthropic ในหน้าตั้งค่า แล้วเลือก ใช้งานจริง'),
+      step(2, 'สั่งงาน', 'กดปุ่ม สั่งงาน เลือกลูกเรือที่ถนัดงานนั้น พิมพ์สิ่งที่ต้องการเป็นภาษาไทยได้เลย ถ้ามีเอกสารหรือข้อมูลประกอบ ให้วางในช่อง ข้อมูลประกอบ'),
+      step(3, 'ดูเขาทำงาน', 'คลิกที่ลูกเรือ (ในแผนที่หรือในรายชื่อด้านซ้าย) จะเห็นข้อความที่เขากำลังเขียนแบบสดๆ กดหยุดได้ทุกเมื่อ'),
+      step(4, 'รับงาน', 'งานที่เสร็จจะไปอยู่ใน กล่องงานที่เสร็จ (ปุ่มด้านบนขวา) เปิดอ่าน คัดลอก ดาวน์โหลดเป็นไฟล์ .md หรือส่งต่อให้ลูกเรือคนอื่นทำต่อได้'),
+      step(5, 'งานต่อกัน', 'ให้หลายคนทำงานเป็นทอดๆ เช่น นักวิจัยหาข้อมูล แล้วส่งให้นักวางกลยุทธ์ทำแผน แล้วส่งให้นักเขียนคำโฆษณาเขียนโพสต์ ผลงานจะไหลไปบนสายพานในห้องโรงงาน'),
+      h(
+        'div',
+        { class: 'help-classes' },
+        h('b', null, 'ลูกเรือแต่ละแบบถนัดอะไร'),
+        ...CLASS_IDS.map((id) => {
+          const c = CLASSES[id];
+          return h('div', { class: 'help-class', style: { '--cls': c.color } as any }, icon(c.icon, 14), h('span', null, h('b', null, c.title), ` ${c.blurb}`));
+        }),
+      ),
+      h(
+        'div',
+        { class: 'notice' },
+        icon('key', 16),
+        h(
+          'span',
+          null,
+          'หา API key ได้ที่ console.anthropic.com (เมนู API Keys) ต้องเติมเครดิตก่อนใช้ key จะถูกเก็บไว้ในเบราว์เซอร์เครื่องนี้เท่านั้น และส่งไปที่ api.anthropic.com เท่านั้น ไม่มีเซิร์ฟเวอร์ของเราเกี่ยวข้อง',
+        ),
+      ),
+    ],
+    [
+      btn('ตั้งค่า API key', { icon: 'key', onClick: () => settingsPanel() }),
+      btn('ลองสั่งงานแรก', { icon: 'send', kind: 'primary', onClick: () => taskPanel() }),
+    ],
+    true,
+  );
+}
+
 // ---------------------------------------------------------------- task -----
 
-function taskPanel(agentId?: string) {
+function taskPanel(agentId?: string, preset?: { input: string; from: string }) {
   let chosen = agentId ? getAgent(agentId) : state.agents.find((a) => a.status === 'IDLE') ?? state.agents[0];
-  const ta = h('textarea', { placeholder: 'Describe the mission. Example: research the market for pixel-art productivity tools.', maxlength: 8000 }) as HTMLTextAreaElement;
-  const sample = btn('Use sample', {
+  const ta = h('textarea', { placeholder: 'อยากให้ทำอะไร พิมพ์เป็นภาษาไทยได้เลย เช่น เขียนแคปชันขายเสื้อยืด 5 แบบ สำหรับโพสต์ในเฟซบุ๊ก', maxlength: 8000 }) as HTMLTextAreaElement;
+  const ctx = h('textarea', { class: 'ctx', placeholder: 'ไม่บังคับ: วางเอกสาร ข้อมูลสินค้า บทความ หรือโค้ดที่อยากให้ใช้ประกอบงาน', maxlength: 60000 }) as HTMLTextAreaElement;
+  if (preset) ctx.value = preset.input;
+  const sample = btn('ใช้ตัวอย่าง', {
     icon: 'reset',
     small: true,
     kind: 'ghost',
@@ -96,10 +173,10 @@ function taskPanel(agentId?: string) {
   const paintWho = () => {
     if (!chosen) return;
     const busy = scheduler.isBusy(chosen.id);
-    who.textContent = `${chosen.name} the ${CLASSES[chosen.cls].title}${busy ? ' is busy; the task will wait in the queue.' : ' will walk to a desk and start.'}`;
+    who.textContent = `${chosen.name} (${CLASSES[chosen.cls].title}) ${busy ? 'ยังทำงานอื่นอยู่ งานนี้จะต่อคิวไว้' : 'จะเดินไปที่โต๊ะแล้วเริ่มทำงานทันที'}`;
   };
   paintWho();
-  const go = btn('Send to desk', {
+  const go = btn('ส่งงาน', {
     icon: 'send',
     kind: 'primary',
     onClick: () => {
@@ -107,7 +184,7 @@ function taskPanel(agentId?: string) {
         ta.focus();
         return;
       }
-      assignTask(chosen.id, ta.value);
+      assignTask(chosen.id, ta.value, ctx.value.trim() || null);
       bus.emit('ui:select', { agentId: chosen.id });
       close();
     },
@@ -116,17 +193,20 @@ function taskPanel(agentId?: string) {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) go.click();
   });
   modal(
-    'New task',
+    preset ? `ส่งต่องานจาก ${preset.from}` : 'สั่งงานใหม่',
     'send',
     [
       modeNotice(),
-      h('div', { class: 'field' }, 'Crew member', agentPicker(chosen?.id ?? null, (a) => ((chosen = a), paintWho()))),
+      h('div', { class: 'field' }, 'เลือกลูกเรือ', agentPicker(chosen?.id ?? null, (a) => ((chosen = a), paintWho()))),
       who,
-      h('label', { class: 'field' }, 'Mission', ta),
-      h('div', { class: 'row' }, sample, h('span', { class: 'field-note' }, 'Ctrl+Enter to send')),
+      h('label', { class: 'field' }, 'งานที่ต้องการ', ta),
+      h('div', { class: 'row' }, sample, h('span', { class: 'field-note' }, 'กด Ctrl+Enter เพื่อส่ง')),
+      h('label', { class: 'field' }, preset ? 'ผลงานที่ส่งต่อมา (แก้ได้)' : 'ข้อมูลประกอบ', ctx),
     ],
-    [btn('Cancel', { kind: 'ghost', onClick: close }), go],
+    [btn('ยกเลิก', { kind: 'ghost', onClick: close }), go],
+    true,
   );
+  if (preset) setTimeout(() => ta.focus(), 40);
 }
 
 // ------------------------------------------------------------- recruit -----
@@ -135,22 +215,22 @@ const NAMES = ['ORION', 'VEGA', 'KITE', 'ECHO', 'ZED', 'MIRA', 'SOL', 'IONA', 'R
 
 function recruitPanel() {
   if (state.agents.length >= MAX_CREW_SLOTS) {
-    bus.emit('toast', { kind: 'warn', text: `The station is full (${MAX_CREW_SLOTS} crew).` });
+    bus.emit('toast', { kind: 'warn', text: `สถานีเต็มแล้ว (สูงสุด ${MAX_CREW_SLOTS} คน)` });
     return;
   }
   let cls: ClassId = 'researcher';
   let model: ModelId = DEFAULT_MODEL;
   const look: Look = { body: Math.random() < 0.5 ? 'a' : 'b', skin: (Math.random() * SKIN_TONES.length) | 0, hair: (Math.random() * HAIR_COLORS.length) | 0, hairStyle: (Math.random() * 4) | 0, uniform: (Math.random() * UNIFORMS.length) | 0 };
   const used = new Set(state.agents.map((a) => a.name));
-  const name = h('input', { type: 'text', maxlength: 12, value: NAMES.find((n) => !used.has(n)) ?? `UNIT${state.agents.length + 1}`, 'aria-label': 'Name' }) as HTMLInputElement;
+  const name = h('input', { type: 'text', maxlength: 12, value: NAMES.find((n) => !used.has(n)) ?? `UNIT${state.agents.length + 1}`, 'aria-label': 'ชื่อเรียก' }) as HTMLInputElement;
   name.addEventListener('input', () => (name.value = name.value.toUpperCase().replace(/[^A-Z0-9 \-]/g, '')));
-  const preview = h('img', { alt: 'Recruit preview', class: 'pixel' }) as HTMLImageElement;
+  const preview = h('img', { alt: 'ตัวอย่างลูกเรือ', class: 'pixel' }) as HTMLImageElement;
   const podTag = h('div', { class: 'pod-tag' });
   let frame = 0;
   let row = 0;
   const repaint = () => {
     void fullBody(look, CLASSES[cls].color, frame, row).then((src) => (preview.src = src));
-    podTag.textContent = `${CLASSES[cls].tag} / ${UNIFORM_NAMES[look.uniform]}`;
+    podTag.textContent = `${CLASSES[cls].tag} / ${UNIFORM_TH[look.uniform]}`;
   };
   const spin = setInterval(() => {
     if (!document.body.contains(preview)) return clearInterval(spin);
@@ -188,13 +268,13 @@ function recruitPanel() {
   const styleSel = h(
     'select',
     { on: { change: (e: Event) => ((look.hairStyle = +(e.target as HTMLSelectElement).value), repaint()) } },
-    ...HAIR_STYLES.map((s, i) => h('option', { value: i, selected: i === look.hairStyle }, s)),
+    ...HAIR_STYLES_TH.map((s, i) => h('option', { value: i, selected: i === look.hairStyle }, s)),
   );
   const bodySel = h(
     'select',
     { on: { change: (e: Event) => ((look.body = (e.target as HTMLSelectElement).value as 'a' | 'b'), repaint()) } },
-    h('option', { value: 'a', selected: look.body === 'a' }, 'Frame A'),
-    h('option', { value: 'b', selected: look.body === 'b' }, 'Frame B'),
+    h('option', { value: 'a', selected: look.body === 'a' }, 'รูปร่าง A'),
+    h('option', { value: 'b', selected: look.body === 'b' }, 'รูปร่าง B'),
   );
   const modelSel = h(
     'select',
@@ -204,7 +284,7 @@ function recruitPanel() {
   repaint();
 
   modal(
-    'Recruitment bay',
+    'ห้องรับลูกเรือใหม่',
     'user-plus',
     [
       h(
@@ -214,26 +294,26 @@ function recruitPanel() {
         h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: '10px' } },
-          h('label', { class: 'field' }, 'Callsign', name),
-          h('div', { class: 'row' }, h('label', { class: 'field grow' }, 'Hair style', styleSel), h('label', { class: 'field grow' }, 'Body', bodySel)),
-          swatchRow('Uniform', UNIFORMS.map((u) => u[0]), () => look.uniform, (i) => (look.uniform = i)),
-          swatchRow('Skin', SKIN_TONES.map((s) => s[0]), () => look.skin, (i) => (look.skin = i)),
-          swatchRow('Hair', HAIR_COLORS.map((s) => s[0]), () => look.hair, (i) => (look.hair = i)),
+          h('label', { class: 'field' }, 'ชื่อเรียก (ภาษาอังกฤษ/ตัวเลข)', name),
+          h('div', { class: 'row' }, h('label', { class: 'field grow' }, 'ทรงผม', styleSel), h('label', { class: 'field grow' }, 'รูปร่าง', bodySel)),
+          swatchRow('ชุด', UNIFORMS.map((u) => u[0]), () => look.uniform, (i) => (look.uniform = i)),
+          swatchRow('สีผิว', SKIN_TONES.map((s) => s[0]), () => look.skin, (i) => (look.skin = i)),
+          swatchRow('สีผม', HAIR_COLORS.map((s) => s[0]), () => look.hair, (i) => (look.hair = i)),
         ),
       ),
-      h('div', { class: 'field' }, 'Class', classGrid),
-      h('label', { class: 'field' }, 'Model (used in Live mode)', modelSel),
+      h('div', { class: 'field' }, 'ความถนัด', classGrid),
+      h('label', { class: 'field' }, 'โมเดล (ใช้ในโหมดใช้งานจริง)', modelSel),
     ],
     [
-      btn('Cancel', { kind: 'ghost', onClick: close }),
-      btn('Summon', {
+      btn('ยกเลิก', { kind: 'ghost', onClick: close }),
+      btn('เรียกตัว', {
         icon: 'user-plus',
         kind: 'amber',
         onClick: () => {
           const n = name.value.trim() || 'RECRUIT';
           const a = makeAgent(n, cls, { ...look }, model);
           addAgent(a);
-          bus.emit('toast', { kind: 'ok', text: `${a.name} the ${CLASSES[cls].title} joined the crew` });
+          bus.emit('toast', { kind: 'ok', text: `${a.name} (${CLASSES[cls].title}) เข้าร่วมทีมแล้ว` });
           close();
           setTimeout(() => bus.emit('ui:select', { agentId: a.id }), 300);
         },
@@ -254,6 +334,21 @@ function pipelinePanel() {
   }
   const chainEl = h('div', { class: 'chain' });
   const MAX = 4;
+  const ta = h('textarea', { placeholder: 'โจทย์ของทั้งทีม เช่น ทำแผนเปิดตัวร้านกาแฟเปิดใหม่ในเชียงใหม่ พร้อมโพสต์ประกาศ' }) as HTMLTextAreaElement;
+  ta.value = 'ทำแผนเปิดตัวร้านกาแฟเปิดใหม่ในเชียงใหม่ แล้วเขียนโพสต์เฟซบุ๊กประกาศเปิดร้าน';
+  const go = btn('เริ่มงานต่อกัน', {
+    icon: 'workflow',
+    kind: 'primary',
+    onClick: () => {
+      if (chain.length < 2 || !ta.value.trim()) return;
+      runPipeline(
+        chain.map((a) => a.id),
+        ta.value,
+      );
+      bus.emit('toast', { kind: 'info', text: `เริ่มงานต่อกัน: ${chain.map((a) => a.name).join(' > ')}` });
+      close();
+    },
+  });
   const paintChain = () => {
     const parts: Node[] = [];
     chain.forEach((a, i) => {
@@ -265,11 +360,11 @@ function pipelinePanel() {
           { class: 'chain-step', style: { '--cls': cls.color } as any },
           `${i + 1}. ${a.name}`,
           h('span', { class: 'tag' }, cls.tag),
-          btn('Remove', { icon: 'x', iconOnly: true, small: true, kind: 'ghost', onClick: () => (chain.splice(i, 1), paintChain(), paintPicker()) }),
+          btn('เอาออก', { icon: 'x', iconOnly: true, small: true, kind: 'ghost', onClick: () => (chain.splice(i, 1), paintChain(), paintPicker()) }),
         ),
       );
     });
-    if (!chain.length) parts.push(h('div', { class: 'field-note' }, 'Pick crew members below, in order.'));
+    if (!chain.length) parts.push(h('div', { class: 'field-note' }, 'เลือกลูกเรือด้านล่างตามลำดับที่ต้องการ'));
     chainEl.replaceChildren(...parts);
     go.disabled = chain.length < 2;
   };
@@ -286,34 +381,19 @@ function pipelinePanel() {
         (a) => !chain.includes(a),
       ),
     );
-  const ta = h('textarea', { placeholder: 'The mission for the whole chain. Example: launch plan for a pixel-art focus timer app.' }) as HTMLTextAreaElement;
-  ta.value = 'Plan and announce the launch of STARNET, a pixel-art control room for AI agents.';
-  const go = btn('Start pipeline', {
-    icon: 'workflow',
-    kind: 'primary',
-    onClick: () => {
-      if (chain.length < 2 || !ta.value.trim()) return;
-      runPipeline(
-        chain.map((a) => a.id),
-        ta.value,
-      );
-      bus.emit('toast', { kind: 'info', text: `Pipeline started: ${chain.map((a) => a.name).join(' > ')}` });
-      close();
-    },
-  });
   paintChain();
   paintPicker();
   modal(
-    'Pipeline mode',
+    'งานต่อกัน (หลายคนทำเป็นทอด)',
     'workflow',
     [
       modeNotice(),
-      h('div', { class: 'field-note' }, 'Chain up to four crew members. Each one works at a Factory station; their output rides the conveyor to the next, and the last one carries the final result to the Outbox.'),
-      h('div', { class: 'field' }, 'Chain', chainEl),
-      h('div', { class: 'field' }, 'Add crew', pickerHost),
-      h('label', { class: 'field' }, 'Mission', ta),
+      h('div', { class: 'field-note' }, 'เลือกได้สูงสุด 4 คน คนแรกทำก่อน แล้วผลงานจะวิ่งไปบนสายพานในห้องโรงงานให้คนถัดไปทำต่อ คนสุดท้ายจะเอางานไปส่งที่กล่องงานที่เสร็จ'),
+      h('div', { class: 'field' }, 'ลำดับการทำงาน', chainEl),
+      h('div', { class: 'field' }, 'เพิ่มลูกเรือ', pickerHost),
+      h('label', { class: 'field' }, 'โจทย์', ta),
     ],
-    [btn('Cancel', { kind: 'ghost', onClick: close }), go],
+    [btn('ยกเลิก', { kind: 'ghost', onClick: close }), go],
     true,
   );
 }
@@ -325,7 +405,7 @@ function settingsPanel() {
   let mode = s.mode;
   let reveal = false;
   const key = h('input', { type: 'password', value: getApiKey(), placeholder: 'sk-ant-...', autocomplete: 'off', spellcheck: false, 'aria-label': 'Anthropic API key' }) as HTMLInputElement;
-  const eye = btn('Show key', {
+  const eye = btn('แสดง key', {
     icon: 'eye',
     iconOnly: true,
     small: true,
@@ -335,51 +415,76 @@ function settingsPanel() {
       eye.replaceChildren(icon(reveal ? 'eye-off' : 'eye', 14));
     },
   });
+  const testOut = h('span', { class: 'field-note' });
+  const testBtn = btn('ทดสอบ key', {
+    icon: 'check',
+    small: true,
+    onClick: async () => {
+      testBtn.disabled = true;
+      testOut.textContent = 'กำลังทดสอบ...';
+      try {
+        const used = await testKey(key.value.trim());
+        addUsage(used);
+        testOut.textContent = `ใช้งานได้ (ใช้ไป ${used} โทเคน)`;
+        testOut.style.color = 'var(--teal)';
+      } catch (err) {
+        testOut.textContent = (err as Error).message;
+        testOut.style.color = 'var(--red)';
+      } finally {
+        testBtn.disabled = false;
+      }
+    },
+  });
   const modeGrid = h('div', { class: 'choice-grid' });
   const paintMode = () =>
     modeGrid.replaceChildren(
-      h('button', { class: 'choice', type: 'button', 'aria-pressed': String(mode === 'demo'), on: { click: () => ((mode = 'demo'), paintMode()) } }, h('b', null, icon('monitor', 14), 'Demo'), 'Scripted agents. No key, no cost.'),
-      h('button', { class: 'choice', type: 'button', 'aria-pressed': String(mode === 'live'), on: { click: () => ((mode = 'live'), paintMode()) } }, h('b', null, icon('key', 14), 'Live'), 'Real Claude calls with your own key.'),
+      h('button', { class: 'choice', type: 'button', 'aria-pressed': String(mode === 'demo'), on: { click: () => ((mode = 'demo'), paintMode()) } }, h('b', null, icon('monitor', 14), 'โหมดตัวอย่าง'), 'ข้อความจำลอง ไว้ดูการทำงาน ไม่ต้องมี key ไม่เสียเงิน'),
+      h('button', { class: 'choice', type: 'button', 'aria-pressed': String(mode === 'live'), on: { click: () => ((mode = 'live'), paintMode()) } }, h('b', null, icon('key', 14), 'ใช้งานจริง'), 'เรียก Claude จริงด้วย key ของคุณ ได้งานจริงตามโจทย์'),
     );
   paintMode();
   const limit = h('input', { type: 'number', min: 1000, step: 1000, value: s.dailyTokenLimit }) as HTMLInputElement;
   const maxOut = h('input', { type: 'number', min: 256, max: 16000, step: 256, value: s.maxOutputTokens }) as HTMLInputElement;
   const crt = h('input', { type: 'checkbox', checked: s.crt }) as HTMLInputElement;
   const auto = h('input', { type: 'checkbox', checked: s.autopilot }) as HTMLInputElement;
-  const usedEl = h('span', null, `${usedToday().toLocaleString()} tokens used today`);
+  const usedEl = h('span', null, `วันนี้ใช้ไป ${usedToday().toLocaleString()} โทเคน`);
 
   modal(
-    'Settings',
+    'ตั้งค่า',
     'settings',
     [
-      h('div', { class: 'field' }, 'Mode', modeGrid),
-      h('label', { class: 'field' }, 'Anthropic API key (Live mode)', h('div', { class: 'row' }, h('div', { class: 'grow' }, key), eye)),
+      h('div', { class: 'field' }, 'โหมด', modeGrid),
+      h('label', { class: 'field' }, 'Anthropic API key (สำหรับโหมดใช้งานจริง)', h('div', { class: 'row' }, h('div', { class: 'grow' }, key), eye, testBtn)),
+      testOut,
       h(
         'div',
         { class: 'notice' },
         icon('shield-check', 16),
-        h('span', null, 'Bring your own key. It is stored only in this browser (localStorage) and sent only to api.anthropic.com, directly from your browser. STARNET has no server. Use a key with a spend limit, and clear it here when you are done.'),
+        h(
+          'span',
+          null,
+          'ขอ key ได้ที่ console.anthropic.com เมนู API Keys (ต้องเติมเครดิตก่อน) key จะเก็บไว้ในเบราว์เซอร์เครื่องนี้เท่านั้น และส่งตรงไปที่ api.anthropic.com เท่านั้น STARNET ไม่มีเซิร์ฟเวอร์ แนะนำให้ตั้งวงเงินใช้จ่ายของ key ไว้ด้วย และกด ลบ key เมื่อใช้เสร็จบนเครื่องคนอื่น',
+        ),
       ),
-      h('div', { class: 'row' }, h('label', { class: 'field grow' }, 'Daily token limit', limit), h('label', { class: 'field grow' }, 'Max output tokens per task', maxOut)),
-      h('div', { class: 'row field-note' }, usedEl, btn('Reset counter', { icon: 'reset', small: true, kind: 'ghost', onClick: () => (resetSpend(), (usedEl.textContent = '0 tokens used today'), bus.emit('spend:update', { used: 0, limit: s.dailyTokenLimit })) })),
-      h('label', { class: 'row field-note' }, crt, 'CRT scanlines and vignette'),
-      h('label', { class: 'row field-note' }, auto, 'Demo autopilot: idle crew pick up sample tasks on their own (Demo mode only)'),
-      h('div', { class: 'field-note' }, `Current key: ${maskKey(getApiKey())}`),
+      h('div', { class: 'row' }, h('label', { class: 'field grow' }, 'เพดานโทเคนต่อวัน', limit), h('label', { class: 'field grow' }, 'ความยาวคำตอบสูงสุดต่องาน (โทเคน)', maxOut)),
+      h('div', { class: 'row field-note' }, usedEl, btn('รีเซ็ตตัวนับ', { icon: 'reset', small: true, kind: 'ghost', onClick: () => (resetSpend(), (usedEl.textContent = 'วันนี้ใช้ไป 0 โทเคน'), bus.emit('spend:update', { used: 0, limit: s.dailyTokenLimit })) })),
+      h('label', { class: 'row field-note' }, crt, 'เส้นจอ CRT แบบทีวีเก่า'),
+      h('label', { class: 'row field-note' }, auto, 'ให้ลูกเรือที่ว่างหยิบงานตัวอย่างมาทำเอง (เฉพาะโหมดตัวอย่าง ไว้โชว์ จะทำให้กล่องงานเต็มเร็ว)'),
+      h('div', { class: 'field-note' }, `key ปัจจุบัน: ${maskKey(getApiKey())}`),
     ],
     [
-      btn('Clear key', { icon: 'trash', kind: 'danger', onClick: () => ((key.value = ''), setApiKey(''), bus.emit('toast', { kind: 'info', text: 'API key removed from this browser' })) }),
-      btn('Cancel', { kind: 'ghost', onClick: close }),
-      btn('Save', {
+      btn('ลบ key', { icon: 'trash', kind: 'danger', onClick: () => ((key.value = ''), setApiKey(''), bus.emit('toast', { kind: 'info', text: 'ลบ API key ออกจากเบราว์เซอร์นี้แล้ว' })) }),
+      btn('ยกเลิก', { kind: 'ghost', onClick: close }),
+      btn('บันทึก', {
         icon: 'check',
         kind: 'primary',
         onClick: () => {
           const k = key.value.trim();
           if (mode === 'live' && !k) {
-            bus.emit('toast', { kind: 'warn', text: 'Live mode needs an API key.' });
+            bus.emit('toast', { kind: 'warn', text: 'โหมดใช้งานจริงต้องมี API key' });
             key.focus();
             return;
           }
-          if (k && !k.startsWith('sk-ant-')) bus.emit('toast', { kind: 'warn', text: 'That does not look like an Anthropic key (sk-ant-...). Saved anyway.' });
+          if (k && !k.startsWith('sk-ant-')) bus.emit('toast', { kind: 'warn', text: 'key นี้ดูไม่เหมือน key ของ Anthropic (ควรขึ้นต้นด้วย sk-ant-) แต่บันทึกไว้ให้แล้ว' });
           setApiKey(k);
           updateSettings({
             mode,
@@ -389,7 +494,7 @@ function settingsPanel() {
             autopilot: auto.checked,
           });
           bus.emit('spend:update', { used: usedToday(), limit: state.settings.dailyTokenLimit });
-          bus.emit('toast', { kind: 'ok', text: mode === 'live' ? 'Live mode on. Agents now call Claude.' : 'Demo mode on.' });
+          bus.emit('toast', { kind: 'ok', text: mode === 'live' ? 'เปิดโหมดใช้งานจริงแล้ว ลูกเรือจะเรียก Claude จริง' : 'ใช้โหมดตัวอย่าง' });
           close();
         },
       }),
@@ -405,13 +510,17 @@ function resultPanel(id: string) {
   markRead(id);
   const cls = CLASSES[r.cls];
   const md = h('div', { class: 'md', html: renderMarkdown(r.content) });
-  const fileName = `${r.agentName.toLowerCase()}-${r.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'result'}.md`;
+  const slug = r.title.toLowerCase().replace(/[^a-z0-9฀-๿]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+  const fileName = `${r.agentName.toLowerCase()}-${slug || 'result'}.md`;
   modal(
     r.title,
     cls.icon,
-    [h('div', { class: 'field-note' }, `By ${r.agentName} the ${cls.title} / ${new Date(r.createdAt).toLocaleString()}${r.mode === 'demo' ? ' / demo output' : ''}`), md],
     [
-      btn('Delete', {
+      h('div', { class: 'field-note' }, `โดย ${r.agentName} (${cls.title}) / ${new Date(r.createdAt).toLocaleString('th-TH')}${r.mode === 'demo' ? ' / ผลงานจำลองจากโหมดตัวอย่าง' : ''}`),
+      md,
+    ],
+    [
+      btn('ลบ', {
         icon: 'trash',
         kind: 'danger',
         onClick: () => {
@@ -420,22 +529,23 @@ function resultPanel(id: string) {
           close();
         },
       }),
-      btn('Copy', {
+      btn('ส่งต่อให้คนอื่นทำต่อ', { icon: 'arrow-right', onClick: () => taskPanel(undefined, { input: r.content, from: r.agentName }) }),
+      btn('คัดลอก', {
         icon: 'copy',
         onClick: async () => {
           try {
             await navigator.clipboard.writeText(r.content);
-            bus.emit('toast', { kind: 'ok', text: 'Copied to clipboard' });
+            bus.emit('toast', { kind: 'ok', text: 'คัดลอกแล้ว' });
           } catch {
-            bus.emit('toast', { kind: 'error', text: 'Clipboard is blocked in this browser' });
+            bus.emit('toast', { kind: 'error', text: 'เบราว์เซอร์นี้ไม่อนุญาตให้คัดลอก' });
           }
         },
       }),
-      btn('Download .md', {
+      btn('ดาวน์โหลด .md', {
         icon: 'download',
         kind: 'primary',
         onClick: () => {
-          const header = `<!-- STARNET result by ${r.agentName} (${cls.title}), ${new Date(r.createdAt).toISOString()} -->\n\n`;
+          const header = `<!-- STARNET: ${r.agentName} (${cls.title}), ${new Date(r.createdAt).toISOString()} -->\n\n`;
           const blob = new Blob([header + r.content], { type: 'text/markdown;charset=utf-8' });
           const url = URL.createObjectURL(blob);
           const a = h('a', { href: url, download: fileName });

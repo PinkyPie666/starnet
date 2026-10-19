@@ -26,6 +26,7 @@ tank and fish, coffee machine, hydroponic plants, server racks, carpet, the
 |---|---|---|---|
 | Press Start 2P | CodeMan38 | `@fontsource/press-start-2p` | SIL Open Font License 1.1 |
 | VT323 | Peter Hull | `@fontsource/vt323` | SIL Open Font License 1.1 |
+| Chakra Petch (Thai text) | Cadson Demak | `@fontsource/chakra-petch` | SIL Open Font License 1.1 |
 
 ## Icons
 

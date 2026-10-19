@@ -16,18 +16,19 @@ const SHARED = `You are a crew member aboard STARNET, a station where specialist
 Write the deliverable itself, not a description of what you would do. Use Markdown with short headings and lists where they help.
 Be concrete: real names, numbers, steps and examples beat generalities. Say plainly when something is an assumption or needs checking.
 Never use emoji. Keep the whole answer under about 700 words unless the request clearly needs more.
+Language: write in Thai by default, in natural modern Thai. If the operator clearly writes the mission in another language, answer in that language instead. Keep code, commands, file names, product names and technical terms in their original form.
 If you received output from a previous crew member, build on it instead of repeating it.`;
 
 export const CLASSES: Record<ClassId, ClassDef> = {
   researcher: {
     id: 'researcher',
-    title: 'Researcher',
+    title: 'นักวิจัย',
     tag: 'RSC',
-    blurb: 'Finds what is known, what is not, and what matters.',
+    blurb: 'หาข้อมูล สรุปว่าอะไรรู้แล้ว อะไรยังไม่รู้ และอะไรสำคัญ',
     color: '#3aa0ff',
     trim: 0x3aa0ff,
     icon: 'search',
-    samplePrompt: 'What should a small team know before launching a browser-based AI tool?',
+    samplePrompt: 'ทีมเล็กๆ ควรรู้อะไรบ้างก่อนเปิดตัวเครื่องมือ AI ที่ใช้งานผ่านเว็บเบราว์เซอร์',
     system: `${SHARED}
 
 Role: Researcher. You turn a question into a compact, trustworthy briefing.
@@ -39,13 +40,13 @@ Method:
   },
   strategist: {
     id: 'strategist',
-    title: 'Strategist',
+    title: 'นักวางกลยุทธ์',
     tag: 'STR',
-    blurb: 'Turns findings into a plan with priorities and bets.',
+    blurb: 'เปลี่ยนข้อมูลเป็นแผน จัดลำดับความสำคัญ ว่าจะทำอะไรก่อนหลัง',
     color: '#f0b030',
     trim: 0xf0b030,
     icon: 'compass',
-    samplePrompt: 'Plan a 30-day launch for a pixel-art productivity app with no marketing budget.',
+    samplePrompt: 'วางแผนเปิดตัวแอปจัดการงานสไตล์พิกเซลอาร์ตภายใน 30 วัน โดยไม่มีงบโฆษณา',
     system: `${SHARED}
 
 Role: Strategist. You convert goals and findings into a decision-ready plan.
@@ -58,13 +59,13 @@ Prefer focus over coverage: cut anything that does not move the objective.`,
   },
   coder: {
     id: 'coder',
-    title: 'Coder',
+    title: 'โปรแกรมเมอร์',
     tag: 'COD',
-    blurb: 'Ships working, readable code with the edge cases handled.',
+    blurb: 'เขียนโค้ดที่ใช้งานได้จริง อ่านง่าย และรองรับกรณีพิเศษ',
     color: '#2ee8c0',
     trim: 0x2ee8c0,
     icon: 'code',
-    samplePrompt: 'Write a TypeScript debounce function with leading/trailing options and tests.',
+    samplePrompt: 'เขียนฟังก์ชัน debounce ภาษา TypeScript ที่มีตัวเลือก leading/trailing พร้อมเทสต์',
     system: `${SHARED}
 
 Role: Coder. You write production-quality code.
@@ -77,13 +78,13 @@ Keep comments sparse and useful. Prefer the standard library over new dependenci
   },
   copywriter: {
     id: 'copywriter',
-    title: 'Copywriter',
+    title: 'นักเขียนคำโฆษณา',
     tag: 'CPY',
-    blurb: 'Writes copy people actually read, in the right voice.',
+    blurb: 'เขียนข้อความขายของ โพสต์ แคปชัน ที่คนอยากอ่านจริง',
     color: '#ff5fa2',
     trim: 0xff5fa2,
     icon: 'pen-tool',
-    samplePrompt: 'Write a landing page hero, three feature blurbs and a CTA for STARNET.',
+    samplePrompt: 'เขียนข้อความหน้าแรกเว็บไซต์ (หัวข้อหลัก จุดเด่น 3 ข้อ และปุ่มชวนกด) สำหรับร้านกาแฟเปิดใหม่',
     system: `${SHARED}
 
 Role: Copywriter. You write clear, persuasive copy for a specific reader.
@@ -95,13 +96,13 @@ Method:
   },
   reviewer: {
     id: 'reviewer',
-    title: 'Reviewer',
+    title: 'ผู้ตรวจงาน',
     tag: 'REV',
-    blurb: 'Finds the holes before your users do.',
+    blurb: 'ตรวจหาจุดอ่อน ข้อผิดพลาด แล้วบอกวิธีแก้',
     color: '#ff6b4a',
     trim: 0xff6b4a,
     icon: 'shield-check',
-    samplePrompt: 'Review this plan: launch on Product Hunt on a Friday with no waitlist.',
+    samplePrompt: 'ช่วยตรวจแผนนี้: จะเปิดตัวแอปวันศุกร์ โดยไม่มีรายชื่อคนรอใช้ล่วงหน้าเลย',
     system: `${SHARED}
 
 Role: Reviewer. You critique work so it gets better, not to sound clever.
@@ -114,13 +115,13 @@ Be specific: quote the exact line or claim you are reviewing. Do not rewrite eve
   },
   ops: {
     id: 'ops',
-    title: 'Ops',
+    title: 'ฝ่ายปฏิบัติการ',
     tag: 'OPS',
-    blurb: 'Makes it run: checklists, runbooks, automation.',
+    blurb: 'ทำเช็กลิสต์ ขั้นตอนการทำงาน และงานอัตโนมัติ',
     color: '#a98bff',
     trim: 0xa98bff,
     icon: 'wrench',
-    samplePrompt: 'Write a deploy checklist and rollback runbook for a static site on Netlify.',
+    samplePrompt: 'ทำเช็กลิสต์ขั้นตอนอัปเว็บขึ้น Netlify และวิธีย้อนกลับเมื่อเว็บพัง',
     system: `${SHARED}
 
 Role: Ops. You make work repeatable and safe to run.
@@ -136,9 +137,9 @@ Assume the reader is competent but tired at 2 a.m.: be explicit, avoid ambiguity
 export const CLASS_IDS = Object.keys(CLASSES) as ClassId[];
 
 export const MODELS: { id: ModelId; label: string; note: string }[] = [
-  { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', note: 'fast, default' },
-  { id: 'claude-sonnet-5-5', label: 'Sonnet 5.5', note: 'stronger, slower' },
-  { id: 'claude-haiku-5-5', label: 'Haiku 5.5', note: 'newest, cheapest' },
+  { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', note: 'เร็ว ค่าเริ่มต้น' },
+  { id: 'claude-sonnet-5-5', label: 'Sonnet 5.5', note: 'ฉลาดกว่า ช้ากว่า' },
+  { id: 'claude-haiku-5-5', label: 'Haiku 5.5', note: 'ใหม่สุด ถูกสุด' },
 ];
 
 export const DEFAULT_MODEL: ModelId = 'claude-haiku-4-5-20251001';

@@ -279,5 +279,5 @@ export class Scheduler {
 export function describeError(err: unknown): string {
   if (err instanceof Error) return err.message || err.name;
   if (typeof err === 'string') return err;
-  return 'Unknown error';
+  return 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
 }

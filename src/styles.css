@@ -17,9 +17,9 @@
   --ink: #100c1c;
   --glow: 0 0 0 1px rgba(58, 160, 255, 0.25), 0 0 14px rgba(58, 160, 255, 0.22);
   --bevel: inset 2px 2px 0 rgba(160, 200, 255, 0.14), inset -2px -2px 0 rgba(0, 0, 0, 0.55);
-  --head: 'Press Start 2P', 'Courier New', monospace;
-  --body: 'VT323', 'Courier New', monospace;
-  --read: 'VT323', ui-sans-serif, system-ui, 'Noto Sans Thai', 'Leelawadee UI', 'Tahoma', sans-serif;
+  --head: 'Press Start 2P', 'ThaiHead', 'Courier New', monospace;
+  --body: 'VT323', 'ThaiBody', 'Courier New', monospace;
+  --read: 'VT323', 'ThaiRead', ui-sans-serif, system-ui, sans-serif;
   --topbar-h: 52px;
   --side-w: 300px;
   color-scheme: dark;
@@ -1241,4 +1241,85 @@ body:not(.crt-on) .crt {
   .spend {
     display: none;
   }
+}
+
+/* ---------- Thai text tuning and the how-to guide ---------- */
+:lang(th) .panel-title,
+:lang(th) .btn,
+:lang(th) .stext,
+:lang(th) label.field,
+:lang(th) div.field {
+  line-height: 1.5;
+}
+.btn {
+  font-size: 9px;
+}
+.help-lead {
+  margin: 0;
+  font-size: 19px;
+  color: var(--text);
+}
+.help-step {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.help-num {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  font-family: var(--head);
+  font-size: 12px;
+  color: #050915;
+  background: var(--teal);
+  box-shadow: var(--bevel);
+}
+.help-step b {
+  font-family: var(--head);
+  font-size: 10px;
+  color: var(--amber);
+}
+.help-step p {
+  margin: 4px 0 0;
+  font-size: 18px;
+  color: var(--text);
+  line-height: 1.25;
+}
+.help-classes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 6px;
+}
+.help-classes > b {
+  grid-column: 1 / -1;
+  font-family: var(--head);
+  font-size: 10px;
+  color: var(--elec);
+}
+.help-class {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 17px;
+  padding: 6px 8px;
+  border: 2px solid #1d2f66;
+  border-left-color: var(--cls);
+  background: rgba(5, 9, 21, 0.55);
+}
+.help-class .ico {
+  color: var(--cls);
+  margin-top: 3px;
+}
+.help-class b {
+  color: #fff;
+}
+textarea.ctx {
+  min-height: 80px;
+  font-size: 17px;
+}
+.notice .btn {
+  margin-left: auto;
+  flex: none;
 }

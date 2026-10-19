@@ -43,7 +43,7 @@ outlines, a small fixed palette, no smoothing.
    Gate: 4 agents concurrently without jank.
 3. [x] Recruitment Bay, Pipeline mode, Factory + Lounge rooms, mobile layout.
    Gate: Playwright screenshots on desktop and 390 px.
-4. [ ] Optimization, tests, README, CREDITS, deploy.
+4. [x] Optimization, tests, README, CREDITS, deploy.
    Gate: live URL works in Demo mode with no key.
 
 ## Decisions made on the user's behalf
@@ -56,3 +56,12 @@ outlines, a small fixed palette, no smoothing.
 - Concurrency cap: 6 agents working at once.
 - Panels are plain DOM; UI text is English; agent output can be any language
   (Thai falls back to a system font because the pixel fonts lack Thai glyphs).
+
+## Results
+
+- Live: https://starnet-crew-control.netlify.app (Demo mode, no key needed)
+- Repo: https://github.com/PinkyPie666/starnet (MIT)
+- Eager JS 22 KB gzip; Anthropic SDK 73 KB gzip loaded only in Live mode; Phaser lazy.
+- 12 working agents: 60 fps desktop, 59 fps at 390 px with 4x CPU throttle (headless Chromium).
+- 17 unit tests (bus, scheduler); mocked-API Live checks pass (stream, 4 concurrent, bad key, 429, network, spend guard).
+- Deployed through the Netlify connector because the Netlify CLI was not logged in.

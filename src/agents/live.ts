@@ -52,7 +52,13 @@ export class LiveError extends Error {
   }
 }
 
-export function liveRunner(cls: ClassId, maxTokens: number, webSearch = false): Runner {
+export interface ToolFlags {
+  webSearch?: boolean;
+  webFetch?: boolean;
+  codeExec?: boolean;
+}
+
+export function liveRunner(cls: ClassId, maxTokens: number, flags: ToolFlags = {}): Runner {
   return async ({ task, signal, text }) => {
     const apiKey = getApiKey();
     if (!apiKey) throw new LiveError('ยังไม่ได้ใส่ API key เปิดหน้าตั้งค่าแล้ววาง key ของ Anthropic หรือสลับกลับไปโหมดตัวอย่าง', 'auth');
@@ -64,28 +70,40 @@ export function liveRunner(cls: ClassId, maxTokens: number, webSearch = false): 
       model: task.model,
       max_tokens: maxTokens,
       system: CLASSES[cls].system + languageRule(),
-      ...(webSearch ? { tools: [webSearchTool(task.model)] } : {}),
-      messages: [{ role: 'user' as const, content: buildUserMessage(task) }],
+      ...(toolsFor(task.model, flags).length ? { tools: toolsFor(task.model, flags) } : {}),
+      messages: [{ role: 'user' as const, content: buildUserMessage(task) }] as any[],
     };
+    let input = 0;
+    let output = 0;
+    const files: { id: string; name: string }[] = [];
 
     try {
       // Sonnet 5.5 can decline on safety classifiers; opt into Anthropic's
       // server-side fallback so the operator gets an answer instead.
-      const stream: any =
-        task.model === 'claude-sonnet-5-5'
-          ? client.beta.messages.stream(
-              { ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } as any,
-              { signal },
-            )
-          : client.messages.stream(params, { signal });
-
-      stream.on('text', (delta: string) => text(delta));
-      const msg: any = await stream.finalMessage();
+      let msg: any;
+      // Server tools (search, fetch, code) can pause a long turn; resume it a few times.
+      for (let turn = 0; turn < 4; turn++) {
+        const stream: any =
+          task.model === 'claude-sonnet-5-5'
+            ? client.beta.messages.stream(
+                { ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } as any,
+                { signal },
+              )
+            : client.messages.stream(params as any, { signal });
+        stream.on('text', (delta: string) => text(delta));
+        msg = await stream.finalMessage();
+        input += msg.usage?.input_tokens ?? 0;
+        output += msg.usage?.output_tokens ?? 0;
+        collectFiles(msg.content, files);
+        if (msg.stop_reason !== 'pause_turn') break;
+        params.messages.push({ role: 'assistant', content: msg.content });
+      }
       if (msg.stop_reason === 'refusal') {
         throw new LiveError('โมเดลปฏิเสธคำขอนี้ ลองเขียนคำสั่งใหม่ด้วยถ้อยคำอื่น', 'refusal');
       }
       if (msg.stop_reason === 'max_tokens') text(`\n\n_[หยุดที่เพดาน ${maxTokens} โทเคนต่องานตามที่ตั้งไว้ในหน้าตั้งค่า]_`);
-      return { input: msg.usage?.input_tokens ?? 0, output: msg.usage?.output_tokens ?? 0 };
+      if (files.length) await nameFiles(client, files);
+      return { input, output, files };
     } catch (err: any) {
       if (signal.aborted || err?.name === 'AbortError' || err instanceof Anthropic.APIUserAbortError) {
         const e = new Error('stopped');
@@ -101,6 +119,56 @@ function languageRule(): string {
   return getLang() === 'en'
     ? '\nLanguage: write in English by default. If the operator clearly writes the mission in another language, answer in that language.'
     : '\nLanguage: write in Thai by default, in natural modern Thai. If the operator clearly writes the mission in another language, answer in that language. Keep code, commands, file names, product names and technical terms in their original form.';
+}
+
+/** Anthropic-hosted tools. Code execution runs Python in Anthropic's sandbox. */
+function toolsFor(model: string, f: ToolFlags): any[] {
+  const tools: any[] = [];
+  // the dynamic-filtering variants bundle their own code runner, so they are
+  // only used when code execution is not also declared
+  const dynamic = model === 'claude-sonnet-5-5' && !f.codeExec;
+  if (f.webSearch) tools.push(dynamic ? webSearchTool(model) : { type: 'web_search_20250305', name: 'web_search', max_uses: 3 });
+  if (f.webFetch) tools.push({ type: dynamic ? 'web_fetch_20260209' : 'web_fetch_20250910', name: 'web_fetch', max_uses: 5 });
+  if (f.codeExec) tools.push({ type: 'code_execution_20260521', name: 'code_execution' });
+  return tools;
+}
+
+/** Files the code sandbox wrote, as Files API ids. */
+export function collectFiles(content: any[], out: { id: string; name: string }[]) {
+  const walk = (v: any) => {
+    if (!v || typeof v !== 'object') return;
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (typeof v.file_id === 'string' && !out.some((f) => f.id === v.file_id)) out.push({ id: v.file_id, name: v.filename ?? v.file_id });
+    for (const k of Object.keys(v)) if (k !== 'file_id') walk(v[k]);
+  };
+  walk(content);
+}
+
+async function nameFiles(client: any, files: { id: string; name: string }[]) {
+  await Promise.all(
+    files.map(async (f) => {
+      try {
+        const meta = await client.beta.files.retrieveMetadata(f.id, { betas: ['files-api-2025-04-14'] });
+        if (meta?.filename) f.name = meta.filename;
+      } catch {
+        /* keep the id as the name */
+      }
+    }),
+  );
+}
+
+/** Download a sandbox file with the stored key. */
+export async function downloadFile(id: string): Promise<Blob> {
+  const apiKey = getApiKey();
+  if (!apiKey) throw new LiveError('ยังไม่ได้ใส่ API key', 'auth');
+  const Anthropic = (await loadSdk()).default;
+  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+  try {
+    const res: any = await client.beta.files.download(id, { betas: ['files-api-2025-04-14'] });
+    return await res.blob();
+  } catch (err) {
+    throw toLiveError(err, Anthropic);
+  }
 }
 
 /** Anthropic-hosted web search; the newer variant needs a newer model. */

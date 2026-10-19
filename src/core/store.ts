@@ -17,6 +17,8 @@ export const DEFAULT_SETTINGS: Settings = {
   crt: true,
   autopilot: false,
   webSearch: false,
+  webFetch: false,
+  codeExec: false,
 };
 
 interface Saved {
@@ -231,6 +233,7 @@ bus.on('task:done', (t) => {
     cls: a.cls,
     title: titleFor(t),
     content: t.output,
+    files: t.files,
     pipelineId: t.pipelineId,
     mode: t.mode,
     createdAt: Date.now(),

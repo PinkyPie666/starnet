@@ -12,7 +12,7 @@ for (const [w, hgt, tag] of [[1440, 900, 'desktop'], [390, 844, 'mobile']]) {
   await page.waitForTimeout(2500);
   await page.screenshot({ path: `shots/en-${tag}-help.png` });
   await page.keyboard.press('Escape');
-  await page.evaluate(() => { const S = window.__starnet; S.assignTask(S.state.agents[0].id, 'Research pixel art tools'); S.bus.emit('ui:open', { panel: 'settings' }); });
+  await page.evaluate(() => { const S = window.__starnet; S.assignTask(S.state.agents[0].id, 'Research pixel art tools'); S.bus.emit('ui:open', { panel: 'schedules' }); });
   await page.waitForTimeout(800);
   await page.screenshot({ path: `shots/en-${tag}-settings.png` });
   await page.keyboard.press('Escape');

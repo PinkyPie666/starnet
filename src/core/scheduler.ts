@@ -210,6 +210,7 @@ export class Scheduler {
         if (ac.signal.aborted) throw new AbortedError();
         task.tokensIn = usage.input;
         task.tokensOut = usage.output;
+        if (usage.files?.length) task.files = usage.files;
         this.opts.onUsage?.(task, usage);
         this.flushNow();
         this.finish(task, 'done', null);

@@ -16,7 +16,7 @@ export const scheduler = new Scheduler({
   runner: (task: Task) => {
     const agent = getAgent(task.agentId);
     const cls = agent?.cls ?? 'researcher';
-    return task.mode === 'live' ? liveRunner(cls, state.settings.maxOutputTokens, state.settings.webSearch) : demoRunner(cls);
+    return task.mode === 'live' ? liveRunner(cls, state.settings.maxOutputTokens, { webSearch: state.settings.webSearch, webFetch: state.settings.webFetch, codeExec: state.settings.codeExec }) : demoRunner(cls);
   },
   guard: (task) => {
     if (task.mode !== 'live') return null;

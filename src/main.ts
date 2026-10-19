@@ -8,6 +8,7 @@ import { assignTask, runPipeline, scheduler } from './app';
 import { mountShell } from './ui/shell';
 import { installThaiFonts } from './ui/th';
 import { installTranslator, tr } from './ui/i18n';
+import { startScheduleTicker } from './core/schedules';
 import type Phaser from 'phaser';
 import type { ClassId } from './core/types';
 
@@ -35,6 +36,12 @@ async function boot() {
   });
 
   startAutopilot();
+  startScheduleTicker((s) => {
+    if (!state.agents.some((a) => a.id === s.agentId)) return false;
+    assignTask(s.agentId, s.prompt, s.input);
+    bus.emit('toast', { kind: 'info', text: `งานตั้งเวลาเริ่มแล้ว: ${s.prompt.slice(0, 50)}` });
+    return true;
+  });
   // handy for debugging and for the Playwright screenshot script
   (window as any).__starnet = {
     bus,

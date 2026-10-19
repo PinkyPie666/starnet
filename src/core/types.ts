@@ -43,6 +43,7 @@ export interface Task {
   model: ModelId;
   tokensIn: number;
   tokensOut: number;
+  files?: OutFile[];
   createdAt: number;
   startedAt: number | null;
   finishedAt: number | null;
@@ -60,6 +61,7 @@ export interface Result {
   mode: 'demo' | 'live';
   createdAt: number;
   read: boolean;
+  files?: OutFile[];
 }
 
 export interface Pipeline {
@@ -78,11 +80,19 @@ export interface Settings {
   crt: boolean;
   autopilot: boolean;
   webSearch: boolean;
+  webFetch: boolean;
+  codeExec: boolean;
+}
+
+export interface OutFile {
+  id: string;
+  name: string;
 }
 
 export interface RunUsage {
   input: number;
   output: number;
+  files?: OutFile[];
 }
 
 export interface Events extends Record<string, unknown> {
@@ -108,4 +118,4 @@ export interface Events extends Record<string, unknown> {
   'toast': { kind: 'info' | 'ok' | 'warn' | 'error'; text: string };
 }
 
-export type PanelId = 'task' | 'outbox' | 'recruit' | 'pipeline' | 'settings' | 'result' | 'agent' | 'help';
+export type PanelId = 'task' | 'outbox' | 'recruit' | 'pipeline' | 'settings' | 'result' | 'agent' | 'help' | 'schedules';

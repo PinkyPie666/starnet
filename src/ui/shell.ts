@@ -68,6 +68,7 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
       outboxBtn,
       btn('หยุดทั้งหมด', { icon: 'stop', kind: 'danger', iconOnly: true, title: 'หยุดลูกเรือทุกคนที่กำลังทำงาน', onClick: () => stopAll() }),
       crtBtn,
+      btn('งานตั้งเวลา', { icon: 'clock', iconOnly: true, kind: 'ghost', onClick: () => openPanel('schedules') }),
       btn('วิธีใช้', { icon: 'help', iconOnly: true, kind: 'ghost', onClick: () => openPanel('help') }),
       btn('ตั้งค่า', { icon: 'settings', iconOnly: true, kind: 'ghost', onClick: () => openPanel('settings') }),
     ),

@@ -74,7 +74,7 @@ for (const vp of VIEWPORTS) {
   await shot('agent-card');
   await S(() => window.__starnet.bus.emit('ui:select', { agentId: null }));
 
-  for (const panel of ['help', 'task', 'pipeline', 'recruit', 'settings']) {
+  for (const panel of ['help', 'task', 'pipeline', 'recruit', 'settings', 'schedules']) {
     await S((p) => window.__starnet.bus.emit('ui:open', { panel: p }), panel);
     await page.waitForTimeout(600);
     await shot(`panel-${panel}`);

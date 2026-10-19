@@ -28,6 +28,27 @@ export function setLang(lang: Lang) {
 
 // Longest phrases first so whole sentences win over the words inside them.
 const EN: [string, string][] = [
+  ['งานตั้งเวลาจะทำงานเฉพาะตอนที่เปิดหน้า STARNET ค้างไว้ ถ้าปิดเบราว์เซอร์ งานจะรอจนกว่าจะเปิดใหม่ แล้วทำรอบที่พลาดไปหนึ่งครั้ง', 'Scheduled tasks run only while STARNET is open. If the browser is closed they wait, then run one missed round when you return.'],
+  ['ยังไม่มีงานตั้งเวลา ตอนสั่งงาน เลือก ทำซ้ำ เป็น ทุกวัน หรือ ทุกๆ กี่ชั่วโมง', 'No scheduled tasks yet. When giving a task, set Repeat to Daily or Every N hours.'],
+  ['ให้ลูกเรือรันโค้ด Python และสร้างไฟล์ได้ เช่น CSV กราฟ (code execution มีค่าใช้จ่ายตามเวลาที่รัน)', 'Let the crew run Python and create files such as CSV or charts (code execution, billed by run time)'],
+  ['ให้ลูกเรืออ่านหน้าเว็บจากลิงก์ที่ให้ได้ (web fetch)', 'Let the crew read web pages from links you give (web fetch)'],
+  ['(ทำงานเมื่อเปิดหน้านี้ค้างไว้)', '(runs while this page is open)'],
+  ['งานตั้งเวลาเริ่มแล้ว:', 'Scheduled task started:'],
+  ['ทุกวัน ตามเวลาที่ตั้ง', 'Daily at a set time'],
+  ['ไฟล์ที่ลูกเรือสร้าง', 'Files created by the crew'],
+  ['สั่งงานแบบตั้งเวลา', 'New scheduled task'],
+  ['ทุกๆ กี่ชั่วโมง', 'Every N hours'],
+  ['ทุกกี่ชั่วโมง', 'Every (hours)'],
+  ['ทำครั้งเดียว', 'Once'],
+  ['งานตั้งเวลา', 'Scheduled tasks'],
+  ['ตั้งเวลาแล้ว:', 'Scheduled:'],
+  ['ทุกวัน เวลา', 'daily at'],
+  ['ชั่วโมง', 'hours'],
+  ['ล่าสุด', 'last run'],
+  ['เปิดใช้', 'Enabled'],
+  ['ทำซ้ำ', 'Repeat'],
+  ['เวลา', 'Time'],
+  ['ทุก', 'every'],
   // --- help guide ---
   ['STARNET คือออฟฟิศ AI ในรูปแบบเกม ลูกเรือแต่ละคนคือผู้ช่วย AI ที่ถนัดงานคนละแบบ สั่งงานแล้วเขาจะเดินไปนั่งที่โต๊ะ พิมพ์งานให้ดูสดๆ แล้วเดินถือผลงานมาส่งที่กล่องงานที่เสร็จ', 'STARNET is an AI office you run like a game. Each crew member is an AI assistant with a specialty. Give one a task and they walk to a desk, type the work while you watch, then carry the result to the Finished Work box.'],
   ['โหมดตัวอย่าง (ค่าเริ่มต้น) ใช้ฟรี แต่เป็นข้อความจำลองไว้ดูการทำงานเฉยๆ ถ้าอยากได้งานจริง ให้ใส่ API key ของ Anthropic ในหน้าตั้งค่า แล้วเลือก ใช้งานจริง', 'Demo mode (the default) is free but shows sample text only. For real work, add your Anthropic API key in Settings and choose Live.'],

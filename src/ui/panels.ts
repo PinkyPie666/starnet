@@ -5,7 +5,8 @@ import { addAgent, bus, deleteResult, getAgent, makeAgent, markRead, state, upda
 import type { Agent, ClassId, Look, ModelId, PanelId } from '../core/types';
 import { CLASSES, CLASS_IDS, DEFAULT_MODEL, MODELS } from '../agents/classes';
 import { assignTask, runPipeline, scheduler } from '../app';
-import { getApiKey, maskKey, setApiKey, testKey } from '../agents/live';
+import { downloadFile, getApiKey, maskKey, setApiKey, testKey } from '../agents/live';
+import { describeRepeat, loadSchedules, saveSchedules, type Repeat } from '../core/schedules';
 import { addUsage, resetSpend, usedToday } from '../agents/spend';
 import { HAIR_COLORS, SKIN_TONES, UNIFORMS } from '../game/palette';
 import { MAX_CREW_SLOTS } from '../game/atlas';
@@ -13,7 +14,7 @@ import { avatarImg, btn, fmtTokens, fullBody, h } from './dom';
 import { icon } from './icons';
 import { renderMarkdown } from './markdown';
 import { STATUS_TH } from './th';
-import { tr } from './i18n';
+import { getLang, tr } from './i18n';
 
 const HAIR_STYLES_TH = ['สั้น', 'ยาว', 'ทรงหงอน', 'โกนเกรียน'];
 const UNIFORM_TH = ['น้ำเงินสถานี', 'ทองบัญชาการ', 'เขียววิศวกร', 'ม่วงวิทยาศาสตร์', 'แดงรักษาการณ์', 'เทาปฏิบัติการ'];
@@ -57,6 +58,7 @@ export function open(panel: PanelId, arg?: string) {
   if (panel === 'pipeline') return pipelinePanel();
   if (panel === 'settings') return settingsPanel();
   if (panel === 'help') return helpPanel();
+  if (panel === 'schedules') return schedulesPanel();
   if (panel === 'result' && arg) return resultPanel(arg);
 }
 
@@ -162,6 +164,19 @@ function taskPanel(agentId?: string, preset?: { input: string; from: string }) {
   const ta = h('textarea', { placeholder: 'อยากให้ทำอะไร พิมพ์เป็นภาษาไทยได้เลย เช่น เขียนแคปชันขายเสื้อยืด 5 แบบ สำหรับโพสต์ในเฟซบุ๊ก', maxlength: 8000 }) as HTMLTextAreaElement;
   const ctx = h('textarea', { class: 'ctx', placeholder: 'ไม่บังคับ: วางเอกสาร ข้อมูลสินค้า บทความ หรือโค้ดที่อยากให้ใช้ประกอบงาน', maxlength: 60000 }) as HTMLTextAreaElement;
   if (preset) ctx.value = preset.input;
+  const rep = h(
+    'select',
+    null,
+    h('option', { value: 'once' }, 'ทำครั้งเดียว'),
+    h('option', { value: 'daily' }, 'ทุกวัน ตามเวลาที่ตั้ง'),
+    h('option', { value: 'hourly' }, 'ทุกๆ กี่ชั่วโมง'),
+  ) as HTMLSelectElement;
+  const at = h('input', { type: 'time', value: '08:00' }) as HTMLInputElement;
+  const every = h('input', { type: 'number', min: 1, max: 168, value: 6 }) as HTMLInputElement;
+  rep.addEventListener('change', () => {
+    (at.parentElement as HTMLElement).style.display = rep.value === 'daily' ? '' : 'none';
+    (every.parentElement as HTMLElement).style.display = rep.value === 'hourly' ? '' : 'none';
+  });
   const sample = btn('ใช้ตัวอย่าง', {
     icon: 'reset',
     small: true,
@@ -185,7 +200,16 @@ function taskPanel(agentId?: string, preset?: { input: string; from: string }) {
         ta.focus();
         return;
       }
-      assignTask(chosen.id, ta.value, ctx.value.trim() || null);
+      const input = ctx.value.trim() || null;
+      const repeat: Repeat | null =
+        rep.value === 'daily' ? { kind: 'daily', time: at.value || '08:00' } : rep.value === 'hourly' ? { kind: 'hourly', every: Math.max(1, +every.value || 1) } : null;
+      if (repeat) {
+        const list = loadSchedules();
+        list.push({ id: `sch-${Date.now().toString(36)}`, agentId: chosen.id, prompt: ta.value.trim(), input, repeat, enabled: true, lastRun: Date.now(), createdAt: Date.now() });
+        saveSchedules(list);
+        bus.emit('toast', { kind: 'ok', text: `ตั้งเวลาแล้ว: ${describeRepeat(repeat)} (ทำงานเมื่อเปิดหน้านี้ค้างไว้)` });
+      }
+      assignTask(chosen.id, ta.value, input);
       bus.emit('ui:select', { agentId: chosen.id });
       close();
     },
@@ -203,6 +227,13 @@ function taskPanel(agentId?: string, preset?: { input: string; from: string }) {
       h('label', { class: 'field' }, 'งานที่ต้องการ', ta),
       h('div', { class: 'row' }, sample, h('span', { class: 'field-note' }, 'กด Ctrl+Enter เพื่อส่ง')),
       h('label', { class: 'field' }, preset ? 'ผลงานที่ส่งต่อมา (แก้ได้)' : 'ข้อมูลประกอบ', ctx),
+      h(
+        'div',
+        { class: 'row' },
+        h('label', { class: 'field grow' }, 'ทำซ้ำ', rep),
+        h('label', { class: 'field', style: { display: 'none' } }, 'เวลา', at),
+        h('label', { class: 'field', style: { display: 'none' } }, 'ทุกกี่ชั่วโมง', every),
+      ),
     ],
     [btn('ยกเลิก', { kind: 'ghost', onClick: close }), go],
     true,
@@ -448,6 +479,8 @@ function settingsPanel() {
   const crt = h('input', { type: 'checkbox', checked: s.crt }) as HTMLInputElement;
   const auto = h('input', { type: 'checkbox', checked: s.autopilot }) as HTMLInputElement;
   const web = h('input', { type: 'checkbox', checked: s.webSearch }) as HTMLInputElement;
+  const fetchBox = h('input', { type: 'checkbox', checked: s.webFetch }) as HTMLInputElement;
+  const codeBox = h('input', { type: 'checkbox', checked: s.codeExec }) as HTMLInputElement;
   const usedEl = h('span', null, `วันนี้ใช้ไป ${usedToday().toLocaleString()} โทเคน`);
 
   modal(
@@ -470,6 +503,8 @@ function settingsPanel() {
       h('div', { class: 'row' }, h('label', { class: 'field grow' }, 'เพดานโทเคนต่อวัน', limit), h('label', { class: 'field grow' }, 'ความยาวคำตอบสูงสุดต่องาน (โทเคน)', maxOut)),
       h('div', { class: 'row field-note' }, usedEl, btn('รีเซ็ตตัวนับ', { icon: 'reset', small: true, kind: 'ghost', onClick: () => (resetSpend(), (usedEl.textContent = 'วันนี้ใช้ไป 0 โทเคน'), bus.emit('spend:update', { used: 0, limit: s.dailyTokenLimit })) })),
       h('label', { class: 'row field-note' }, web, 'ให้ลูกเรือค้นเว็บได้ (ค้นหาข้อมูลล่าสุดจากอินเทอร์เน็ต มีค่าใช้จ่ายเพิ่มประมาณ 10 ดอลลาร์ต่อ 1,000 ครั้ง และผู้ดูแลบัญชีต้องเปิดใช้ใน Console ก่อน)'),
+      h('label', { class: 'row field-note' }, fetchBox, 'ให้ลูกเรืออ่านหน้าเว็บจากลิงก์ที่ให้ได้ (web fetch)'),
+      h('label', { class: 'row field-note' }, codeBox, 'ให้ลูกเรือรันโค้ด Python และสร้างไฟล์ได้ เช่น CSV กราฟ (code execution มีค่าใช้จ่ายตามเวลาที่รัน)'),
       h('label', { class: 'row field-note' }, crt, 'เส้นจอ CRT แบบทีวีเก่า'),
       h('label', { class: 'row field-note' }, auto, 'ให้ลูกเรือที่ว่างหยิบงานตัวอย่างมาทำเอง (เฉพาะโหมดตัวอย่าง ไว้โชว์ จะทำให้กล่องงานเต็มเร็ว)'),
       h('div', { class: 'field-note' }, `key ปัจจุบัน: ${maskKey(getApiKey())}`),
@@ -496,6 +531,8 @@ function settingsPanel() {
             crt: crt.checked,
             autopilot: auto.checked,
             webSearch: web.checked,
+            webFetch: fetchBox.checked,
+            codeExec: codeBox.checked,
           });
           bus.emit('spend:update', { used: usedToday(), limit: state.settings.dailyTokenLimit });
           bus.emit('toast', { kind: 'ok', text: mode === 'live' ? 'เปิดโหมดใช้งานจริงแล้ว ลูกเรือจะเรียก Claude จริง' : 'ใช้โหมดตัวอย่าง' });
@@ -520,8 +557,38 @@ function resultPanel(id: string) {
     r.title,
     cls.icon,
     [
-      h('div', { class: 'field-note' }, `โดย ${r.agentName} (${cls.title}) / ${new Date(r.createdAt).toLocaleString('th-TH')}${r.mode === 'demo' ? ' / ผลงานจำลองจากโหมดตัวอย่าง' : ''}`),
+      h('div', { class: 'field-note' }, `โดย ${r.agentName} (${cls.title}) / ${new Date(r.createdAt).toLocaleString(getLang() === 'en' ? 'en-GB' : 'th-TH')}${r.mode === 'demo' ? ' / ผลงานจำลองจากโหมดตัวอย่าง' : ''}`),
       md,
+      r.files?.length
+        ? h(
+            'div',
+            { class: 'field' },
+            'ไฟล์ที่ลูกเรือสร้าง',
+            h(
+              'div',
+              { class: 'row' },
+              ...r.files.map((f) =>
+                btn(f.name, {
+                  icon: 'file',
+                  small: true,
+                  onClick: async () => {
+                    try {
+                      const blob = await downloadFile(f.id);
+                      const url = URL.createObjectURL(blob);
+                      const a = h('a', { href: url, download: f.name });
+                      document.body.append(a);
+                      a.click();
+                      a.remove();
+                      setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    } catch (err) {
+                      bus.emit('toast', { kind: 'error', text: (err as Error).message });
+                    }
+                  },
+                }),
+              ),
+            ),
+          )
+        : h('span'),
     ],
     [
       btn('ลบ', {
@@ -560,6 +627,66 @@ function resultPanel(id: string) {
         },
       }),
     ],
+    true,
+  );
+}
+
+// ----------------------------------------------------------- schedules -----
+
+function schedulesPanel() {
+  const listEl = h('div', { class: 'outbox-list', style: { padding: '0' } });
+  const paint = () => {
+    const list = loadSchedules();
+    listEl.replaceChildren(
+      ...(list.length
+        ? list.map((sc) => {
+            const a = getAgent(sc.agentId);
+            const toggle = h('input', { type: 'checkbox', checked: sc.enabled, 'aria-label': 'เปิดใช้' }) as HTMLInputElement;
+            toggle.addEventListener('change', () => {
+              const all = loadSchedules();
+              const x = all.find((y) => y.id === sc.id);
+              if (x) x.enabled = toggle.checked;
+              saveSchedules(all);
+            });
+            return h(
+              'div',
+              { class: 'result-item', style: { gridTemplateColumns: 'auto 1fr auto', cursor: 'default' } },
+              toggle,
+              h(
+                'div',
+                { style: { minWidth: '0' } },
+                h('div', { class: 'r-title' }, sc.prompt),
+                h('div', { class: 'r-sub' }, `${a?.name ?? '?'} / ${describeRepeat(sc.repeat)}${sc.lastRun ? ` / ล่าสุด ${new Date(sc.lastRun).toLocaleString()}` : ''}`),
+              ),
+              btn('ลบ', {
+                icon: 'trash',
+                small: true,
+                iconOnly: true,
+                kind: 'danger',
+                onClick: () => {
+                  saveSchedules(loadSchedules().filter((y) => y.id !== sc.id));
+                  paint();
+                },
+              }),
+            );
+          })
+        : [h('div', { class: 'empty' }, 'ยังไม่มีงานตั้งเวลา ตอนสั่งงาน เลือก ทำซ้ำ เป็น ทุกวัน หรือ ทุกๆ กี่ชั่วโมง')]),
+    );
+  };
+  paint();
+  modal(
+    'งานตั้งเวลา',
+    'clock',
+    [
+      h(
+        'div',
+        { class: 'notice warn' },
+        icon('clock', 16),
+        h('span', null, 'งานตั้งเวลาจะทำงานเฉพาะตอนที่เปิดหน้า STARNET ค้างไว้ ถ้าปิดเบราว์เซอร์ งานจะรอจนกว่าจะเปิดใหม่ แล้วทำรอบที่พลาดไปหนึ่งครั้ง'),
+      ),
+      listEl,
+    ],
+    [btn('สั่งงานแบบตั้งเวลา', { icon: 'send', kind: 'primary', onClick: () => taskPanel() })],
     true,
   );
 }

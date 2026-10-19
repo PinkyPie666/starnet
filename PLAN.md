@@ -39,7 +39,7 @@ outlines, a small fixed palette, no smoothing.
 
 1. [x] One room (Work Bay), 3 crew, scripted events, A* walking, sit and type.
    Gate: screenshot looks like a real game.
-2. [ ] Live agents, streaming, Outbox, spend guard, Stop per agent, error states.
+2. [x] Live agents, streaming, Outbox, spend guard, Stop per agent, error states.
    Gate: 4 agents concurrently without jank.
 3. [ ] Recruitment Bay, Pipeline mode, Factory + Lounge rooms, mobile layout.
    Gate: Playwright screenshots on desktop and 390 px.

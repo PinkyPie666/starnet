@@ -1197,3 +1197,14 @@ body:not(.crt-on) .crt {
     transition: none !important;
   }
 }
+
+/* VT323 has no bold cut; faux bold smears, so emphasis is color instead */
+.md strong {
+  font-weight: normal;
+  color: #ffffff;
+  text-shadow: 0 0 6px rgba(58, 160, 255, 0.45);
+}
+.md em {
+  font-style: normal;
+  color: var(--amber);
+}

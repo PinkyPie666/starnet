@@ -1,0 +1,88 @@
+import {
+  createElement,
+  ArrowRight,
+  Check,
+  ChevronRight,
+  Code,
+  Compass,
+  Copy,
+  Cpu,
+  Crosshair,
+  Download,
+  Eye,
+  EyeOff,
+  Gauge,
+  Inbox,
+  KeyRound,
+  Monitor,
+  PenTool,
+  Play,
+  Plus,
+  Rocket,
+  RotateCcw,
+  Search,
+  Send,
+  Settings,
+  ShieldCheck,
+  Square,
+  Trash2,
+  TriangleAlert,
+  Tv,
+  UserPlus,
+  Users,
+  Workflow,
+  Wrench,
+  X,
+  ZoomIn,
+  ZoomOut,
+  type IconNode,
+} from 'lucide';
+
+const ICONS: Record<string, IconNode> = {
+  'arrow-right': ArrowRight,
+  check: Check,
+  'chevron-right': ChevronRight,
+  code: Code,
+  compass: Compass,
+  copy: Copy,
+  cpu: Cpu,
+  crosshair: Crosshair,
+  download: Download,
+  eye: Eye,
+  'eye-off': EyeOff,
+  gauge: Gauge,
+  inbox: Inbox,
+  key: KeyRound,
+  monitor: Monitor,
+  'pen-tool': PenTool,
+  play: Play,
+  plus: Plus,
+  rocket: Rocket,
+  reset: RotateCcw,
+  search: Search,
+  send: Send,
+  settings: Settings,
+  'shield-check': ShieldCheck,
+  stop: Square,
+  trash: Trash2,
+  alert: TriangleAlert,
+  tv: Tv,
+  'user-plus': UserPlus,
+  users: Users,
+  workflow: Workflow,
+  wrench: Wrench,
+  x: X,
+  'zoom-in': ZoomIn,
+  'zoom-out': ZoomOut,
+};
+
+export function icon(name: string, size = 16): SVGElement {
+  const node = ICONS[name] ?? ICONS.cpu;
+  const el = createElement(node);
+  el.setAttribute('width', String(size));
+  el.setAttribute('height', String(size));
+  el.setAttribute('stroke-width', '2.25');
+  el.setAttribute('aria-hidden', 'true');
+  el.classList.add('ico');
+  return el;
+}

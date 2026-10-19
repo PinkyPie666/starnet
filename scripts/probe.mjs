@@ -1,0 +1,11 @@
+import { chromium } from 'playwright';
+const [url, js, wait = '5000'] = process.argv.slice(2);
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+page.on('console', (m) => console.log(`[${m.type()}] ${m.text()}`));
+page.on('pageerror', (e) => console.log(`pageerror: ${e.stack}`));
+page.on('requestfailed', (r) => console.log(`reqfail: ${r.url()} ${r.failure()?.errorText}`));
+await page.goto(url);
+await page.waitForTimeout(+wait);
+console.log(JSON.stringify(await page.evaluate(js), null, 1));
+await browser.close();

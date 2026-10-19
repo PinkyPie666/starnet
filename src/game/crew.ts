@@ -12,7 +12,7 @@ import type { Pt } from './astar';
 const SPEED = 56; // px per second
 const WALK_FPS = 10;
 
-export type Pose = 'stand' | 'walk' | 'sit' | 'type' | 'cheer';
+export type Pose = 'stand' | 'walk' | 'sit' | 'type' | 'cheer' | 'sitFront';
 
 const STATUS_COLOR: Record<string, number> = {
   WORKING: hex(P.glow),
@@ -186,7 +186,7 @@ export class Crew {
     if (!reduced && this.status === 'WORKING') this.dot.setAlpha(0.55 + 0.45 * Math.sin(this.animT * 6));
     else this.dot.setAlpha(1);
     if (this.bang.visible && !reduced) this.bang.y = -40 - (Math.floor(this.animT * 3) % 2);
-    this.c.setDepth(this.c.y + (this.pose === 'sit' || this.pose === 'type' ? 2 : 0));
+    this.c.setDepth(this.c.y + (this.pose === 'sit' || this.pose === 'type' || this.pose === 'sitFront' ? 2 : 0));
   }
 
   private refreshFrame(reduced = false) {
@@ -200,6 +200,9 @@ export class Crew {
     } else if (this.pose === 'cheer') {
       row = 4;
       col = 2;
+    } else if (this.pose === 'sitFront') {
+      row = 4;
+      col = 3;
     }
     this.sprite.setFrame(`${this.frameKey}_${row}_${col}`);
     // a little bob while carrying

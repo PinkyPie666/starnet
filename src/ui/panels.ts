@@ -120,7 +120,7 @@ function taskPanel(agentId?: string) {
     'send',
     [
       modeNotice(),
-      h('label', { class: 'field' }, 'Crew member', agentPicker(chosen?.id ?? null, (a) => ((chosen = a), paintWho()))),
+      h('div', { class: 'field' }, 'Crew member', agentPicker(chosen?.id ?? null, (a) => ((chosen = a), paintWho()))),
       who,
       h('label', { class: 'field' }, 'Mission', ta),
       h('div', { class: 'row' }, sample, h('span', { class: 'field-note' }, 'Ctrl+Enter to send')),
@@ -183,7 +183,7 @@ function recruitPanel() {
         ),
       );
     paint();
-    return h('label', { class: 'field' }, label, row);
+    return h('div', { class: 'field' }, label, row);
   };
   const styleSel = h(
     'select',
@@ -221,7 +221,7 @@ function recruitPanel() {
           swatchRow('Hair', HAIR_COLORS.map((s) => s[0]), () => look.hair, (i) => (look.hair = i)),
         ),
       ),
-      h('label', { class: 'field' }, 'Class', classGrid),
+      h('div', { class: 'field' }, 'Class', classGrid),
       h('label', { class: 'field' }, 'Model (used in Live mode)', modelSel),
     ],
     [
@@ -309,8 +309,8 @@ function pipelinePanel() {
     [
       modeNotice(),
       h('div', { class: 'field-note' }, 'Chain up to four crew members. Each one works at a Factory station; their output rides the conveyor to the next, and the last one carries the final result to the Outbox.'),
-      h('label', { class: 'field' }, 'Chain', chainEl),
-      h('label', { class: 'field' }, 'Add crew', pickerHost),
+      h('div', { class: 'field' }, 'Chain', chainEl),
+      h('div', { class: 'field' }, 'Add crew', pickerHost),
       h('label', { class: 'field' }, 'Mission', ta),
     ],
     [btn('Cancel', { kind: 'ghost', onClick: close }), go],
@@ -352,7 +352,7 @@ function settingsPanel() {
     'Settings',
     'settings',
     [
-      h('label', { class: 'field' }, 'Mode', modeGrid),
+      h('div', { class: 'field' }, 'Mode', modeGrid),
       h('label', { class: 'field' }, 'Anthropic API key (Live mode)', h('div', { class: 'row' }, h('div', { class: 'grow' }, key), eye)),
       h(
         'div',

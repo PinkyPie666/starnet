@@ -642,7 +642,8 @@ select:focus-visible {
 .drawer.open {
   transform: none;
 }
-label.field {
+label.field,
+div.field {
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -682,7 +683,7 @@ select:hover {
 }
 .choice-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 6px;
 }
 .choice {
@@ -696,7 +697,10 @@ select:hover {
   box-shadow: var(--bevel);
   cursor: pointer;
   text-align: left;
-  font-size: 16px;
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.05;
+  text-transform: none;
   color: var(--text-dim);
 }
 .choice b {
@@ -993,8 +997,8 @@ select:hover {
 /* ---------- toasts ---------- */
 .toasts {
   position: fixed;
-  right: 14px;
-  top: calc(var(--topbar-h) + 10px);
+  left: calc(var(--side-w) + 12px);
+  bottom: 48px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1207,4 +1211,34 @@ body:not(.crt-on) .crt {
 .md em {
   font-style: normal;
   color: var(--amber);
+}
+
+@media (max-width: 820px) {
+  .logo {
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .topbar {
+    gap: 8px;
+    padding: 0 8px;
+  }
+  .mode-badge {
+    padding: 5px 6px;
+  }
+  .choice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .choice {
+    font-size: 15px;
+    line-height: 1;
+    padding: 6px;
+  }
+  .pick-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 380px) {
+  .spend {
+    display: none;
+  }
 }

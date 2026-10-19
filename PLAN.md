@@ -41,7 +41,7 @@ outlines, a small fixed palette, no smoothing.
    Gate: screenshot looks like a real game.
 2. [x] Live agents, streaming, Outbox, spend guard, Stop per agent, error states.
    Gate: 4 agents concurrently without jank.
-3. [ ] Recruitment Bay, Pipeline mode, Factory + Lounge rooms, mobile layout.
+3. [x] Recruitment Bay, Pipeline mode, Factory + Lounge rooms, mobile layout.
    Gate: Playwright screenshots on desktop and 390 px.
 4. [ ] Optimization, tests, README, CREDITS, deploy.
    Gate: live URL works in Demo mode with no key.

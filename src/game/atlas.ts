@@ -367,6 +367,34 @@ export function paintProps(a: AtlasBuilder) {
     g.r(1, 6, 7, 1, P.amber1);
   });
 
+  // Stack of data crates
+  a.add('crates', 26, 22, (g) => {
+    const crate = (x: number, y: number, w: number, h: number) => {
+      g.box(x, y, w, h, P.amber2);
+      g.hline(x + 1, y + 1, w - 2, P.amber3);
+      g.hline(x + 1, y + h - 3, w - 2, P.amber1);
+      g.r(x + 2, y + 3, w - 4, 1, P.amber1);
+      g.p(x + w - 3, y + 2, P.glow);
+    };
+    crate(0, 10, 13, 12);
+    crate(13, 10, 13, 12);
+    crate(6, 0, 13, 11);
+  });
+
+  // Ops console: wide desk with two screens, no chair
+  a.add('console', 32, 22, (g) => {
+    g.r(2, 16, 2, 6, P.black);
+    g.r(28, 16, 2, 6, P.black);
+    g.box(0, 8, 32, 10, P.steel2);
+    g.hline(1, 9, 30, P.steel3);
+    g.r(1, 14, 30, 3, P.steel0);
+    g.box(1, 0, 14, 10, P.ink);
+    g.box(17, 0, 14, 10, P.ink);
+    g.r(2, 2, 12, 6, P.teal0);
+    g.r(18, 2, 12, 6, P.teal0);
+    for (let x = 4; x < 28; x += 3) g.p(x, 12, x % 2 ? P.amber3 : P.glow);
+  });
+
   // Outbox delivery chute
   a.add('outbox', 32, 32, (g) => {
     g.box(0, 4, 32, 28, P.steel2);

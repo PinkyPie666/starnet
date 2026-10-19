@@ -9,7 +9,7 @@ export const FW = 18;
 export const FH = 36;
 export const COLS = 7;
 export const ROWS = 4; // 0 down, 1 up, 2 left, 3 right
-export const EXTRA = 3; // extra frames per sheet: sit-type A, sit-type B, cheer
+export const EXTRA = 4; // extra frames per sheet: sit-type A, sit-type B, cheer, sit-front
 export const SHEET_W = FW * COLS;
 export const SHEET_H = FH * (ROWS + 1);
 
@@ -144,6 +144,8 @@ export function paintCrewSheet(
     if ((x <= 4 || x >= 13) && y >= 8 && y <= 20) return [x, y + 3];
     return [x, y];
   });
+  // seated, facing the viewer: thighs and shins drop out (8 px), feet stay put
+  paintFrame(0, 0, ROWS, 3, (x, y) => (y >= 30 ? [x, y] : [x, y - 8]));
 
   ctx.putImageData(out, ox, oy);
 }

@@ -32,6 +32,7 @@ export class StationScene extends Phaser.Scene {
   private stations: { screen: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; owner: string | null }[] = [];
   private conveyor: Phaser.GameObjects.Image[] = [];
   private racks: Phaser.GameObjects.Image[] = [];
+  private consoleScreens: Phaser.GameObjects.Image[] = [];
   private fish: { s: Phaser.GameObjects.Image; t: number; speed: number; y: number }[] = [];
   private sparks!: Phaser.GameObjects.Particles.ParticleEmitter;
   private time0 = 0;
@@ -208,6 +209,11 @@ export class StationScene extends Phaser.Scene {
         this.racks.push(this.add.image(p.x, p.y, 'atlas', 'rackL0').setOrigin(0, 1).setDepth(img.depth + 0.1));
       }
       if (p.id === 'tank') this.addFish(p.x, p.y - 32);
+      if (p.id === 'console') {
+        for (const dx of [2, 18]) {
+          this.consoleScreens.push(this.add.image(p.x + dx, p.y - 20, 'atlas', 'scr0').setOrigin(0, 0).setDepth(img.depth + 0.1));
+        }
+      }
       if (p.id === 'outbox') {
         this.add.bitmapText(p.x + 8, p.y - 31, 'pix', 'OUT', 7).setLetterSpacing(-1).setDepth(img.depth + 0.1).setTint(hex(P.amber3));
       }
@@ -255,6 +261,10 @@ export class StationScene extends Phaser.Scene {
       .setAlpha(0.35)
       .setDepth(1);
     if (!REDUCED) this.tweens.add({ targets: padGlow, alpha: 0.6, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    const sign = this.add.bitmapText(m.pad.x, m.pad.y + 22, 'pix', 'RECRUIT BAY', 7).setOrigin(0.5, 0).setLetterSpacing(-1).setTint(hex(P.glow)).setDepth(2);
+    const sg = this.add.graphics().setDepth(1.5);
+    sg.fillStyle(0x000000, 0.85).fillRect(Math.round(sign.x - sign.width / 2 - 3), sign.y - 2, Math.round(sign.width) + 6, 11);
+    sg.lineStyle(1, hex(P.teal2), 1).strokeRect(Math.round(sign.x - sign.width / 2 - 3) + 0.5, sign.y - 1.5, Math.round(sign.width) + 5, 10);
   }
 
   private addFish(x: number, y: number) {
@@ -568,7 +578,7 @@ export class StationScene extends Phaser.Scene {
   private goIdle(c: Crew, delay: number) {
     c.intent = 'idle';
     c.wait = delay;
-    if (c.pose === 'type' || c.pose === 'sit' || c.pose === 'cheer') {
+    if (c.pose === 'type' || c.pose === 'sit' || c.pose === 'cheer' || c.pose === 'sitFront') {
       c.leaveSeat();
       c.pose = 'stand';
     }
@@ -583,7 +593,7 @@ export class StationScene extends Phaser.Scene {
       this.occupiedSpots.set(s, c.agent.id);
       this.walkTo(c, s, () => {
         if (c.intent !== 'idle') return;
-        c.sitAt(s.dx ?? 0, s.dy ?? 0, s.face, s.kind === 'sofa' ? 'sit' : 'stand');
+        c.sitAt(s.dx ?? 0, s.dy ?? 0, s.face, s.kind === 'sofa' ? 'sitFront' : 'stand');
         c.wait = 4 + Math.random() * 8;
       });
       c.wait = 999;
@@ -645,6 +655,10 @@ export class StationScene extends Phaser.Scene {
     const anyPipeline = this.stations.some((s) => s.owner) || state.pipelines.some((p) => p.status === 'running');
     const convFrame = REDUCED ? 0 : Math.floor(this.time0 * (anyPipeline ? 12 : 3)) % 4;
     if (this.conveyor[0]?.frame.name !== `conv${convFrame}`) for (const s of this.conveyor) s.setFrame(`conv${convFrame}`);
+    this.consoleScreens.forEach((sc, i) => {
+      const f = `scr${(Math.floor(this.time0 * 2) + i) % 4}`;
+      if (sc.frame.name !== f) sc.setFrame(f);
+    });
     const rackFrame = Math.floor(this.time0 * 2) % 2;
     for (const r of this.racks) if (r.frame.name !== `rackL${rackFrame}`) r.setFrame(`rackL${rackFrame}`);
     if (!REDUCED) {

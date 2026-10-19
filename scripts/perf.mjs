@@ -18,7 +18,10 @@ const r = await page.evaluate(
     S.state.settings.autopilot = false;
     // make sure we have enough crew
     const need = n - S.state.agents.length;
-    for (let i = 0; i < need; i++) S.bus.emit('toast', { kind: 'info', text: 'perf' });
+    const classes = ['researcher', 'strategist', 'coder', 'copywriter', 'reviewer', 'ops'];
+    for (let i = 0; i < need; i++) S.recruit(`PERF${i}`, classes[i % 6]);
+    await new Promise((r) => setTimeout(r, 1500));
+    S.scheduler.maxConcurrent = Math.max(6, n);
     for (const a of S.state.agents.slice(0, n)) S.assignTask(a.id, 'Plan a launch for a pixel-art app');
     const long = [];
     try {

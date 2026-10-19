@@ -2,11 +2,12 @@ import '@fontsource/press-start-2p/latin-400.css';
 import '@fontsource/vt323/latin-400.css';
 import './styles.css';
 
-import { bus, load, state } from './core/store';
+import { addAgent, bus, load, makeAgent, state } from './core/store';
 import { CLASSES } from './agents/classes';
 import { assignTask, runPipeline, scheduler } from './app';
 import { mountShell } from './ui/shell';
 import type Phaser from 'phaser';
+import type { ClassId } from './core/types';
 
 let game: Phaser.Game | null = null;
 let stationMod: typeof import('./game') | null = null;
@@ -30,7 +31,15 @@ async function boot() {
 
   startAutopilot();
   // handy for debugging and for the Playwright screenshot script
-  (window as any).__starnet = { bus, state, assignTask, runPipeline, scheduler, game };
+  (window as any).__starnet = {
+    bus,
+    state,
+    assignTask,
+    runPipeline,
+    scheduler,
+    game,
+    recruit: (name: string, cls: ClassId) => addAgent(makeAgent(name, cls, { body: 'a', skin: 2, hair: 1, hairStyle: 0, uniform: 2 })),
+  };
 }
 
 /** Demo mode: idle crew pick up sample tasks so the station feels alive. */

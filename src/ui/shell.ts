@@ -33,7 +33,9 @@ export function mountShell(root: HTMLElement, refs: Omit<ShellRefs, 'world'>): S
   const outboxBtn = btn('Outbox', { icon: 'inbox', onClick: () => toggleOutbox() });
   outboxBtn.append(outboxCount);
   outboxBtn.querySelector('span')!.classList.add('label-wide');
+  outboxBtn.classList.add('hide-mobile');
   const crtBtn = btn('CRT', { icon: 'tv', kind: 'ghost', iconOnly: true, title: 'Toggle CRT scanlines', onClick: () => updateSettings({ crt: !state.settings.crt }) });
+  crtBtn.classList.add('hide-mobile');
   const mk = (label: string, ic: string, fn: () => void, kind?: 'primary' | 'amber', extra = '') => {
     const b = btn(label, { icon: ic, kind, onClick: fn });
     b.querySelector('span')!.classList.add('label-wide');

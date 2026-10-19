@@ -121,6 +121,9 @@ export function buildMap(): StationMap {
   prop('rack', 28, 12, 14 * TILE - 2, { x: 28, y: 12, w: 1, h: 2 }, { id: 'rack' });
   prop('rack', 48, 12, 14 * TILE - 2, { x: 48, y: 12, w: 1, h: 2 }, { id: 'rack' });
   prop('plant', 33, 14, 15 * TILE, { x: 33, y: 14, w: 1, h: 1 });
+  prop('crates', 29, 12, 14 * TILE, { x: 29, y: 13, w: 2, h: 1 });
+  prop('crates', 43, 13, 15 * TILE, { x: 43, y: 14, w: 2, h: 1 });
+  prop('crates', 46, 13, 15 * TILE, { x: 46, y: 14, w: 2, h: 1 });
 
   // --- Lounge ---------------------------------------------------------------
   const carpet = { x: 4, y: 21, w: 13, h: 9 };
@@ -143,6 +146,11 @@ export function buildMap(): StationMap {
   prop('rack', 48, 19, 21 * TILE - 2, { x: 48, y: 19, w: 1, h: 1 }, { id: 'rack' });
   prop('rack', 47, 19, 21 * TILE - 2, { x: 47, y: 19, w: 1, h: 1 }, { id: 'rack' });
   prop('plant', 28, 30, 31 * TILE, { x: 28, y: 30, w: 1, h: 1 });
+  prop('crates', 33, 19, 21 * TILE - 2, { x: 33, y: 20, w: 2, h: 1 });
+  prop('console', 40, 19, 20 * TILE + 6, { x: 40, y: 19, w: 2, h: 1 }, { id: 'console' });
+  prop('console', 43, 19, 20 * TILE + 6, { x: 43, y: 19, w: 2, h: 1 }, { id: 'console' });
+  prop('rack', 28, 27, 29 * TILE - 2, { x: 28, y: 27, w: 1, h: 2 }, { id: 'rack' });
+  prop('plant', 48, 30, 31 * TILE, { x: 48, y: 30, w: 1, h: 1 });
 
   const spots: Spot[] = [
     { x: 5, y: 22, face: 0, kind: 'sofa', dy: -9 },
